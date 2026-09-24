@@ -1,0 +1,69 @@
+name: Ghost Hotel Tycoon
+
+on:
+  push:
+    paths:
+      - "ghost-hotel-tycoon/**"
+      - ".github/workflows/ghost-hotel.yml"
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: ghost-hotel-tycoon
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Roblox tooling
+        id: tools
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin
+          key: roblox-tools-rojo7.7.0-selene0.31.0-stylua2.5.2-lune0.10.5
+
+      - name: Install Rojo, Selene, StyLua and Lune
+        if: steps.tools.outputs.cache-hit != 'true'
+        run: |
+          cargo install rojo --version 7.7.0 --locked
+          cargo install selene --version 0.31.0 --locked
+          cargo install stylua --version 2.5.2 --locked --features luau
+          cargo install lune --version 0.10.5 --locked
+
+      - name: Format
+        run: stylua --check src
+
+      - name: Lint
+        run: |
+          selene generate-roblox-std
+          selene src
+
+      - name: Unit tests
+        run: lune run tests/run
+
+      - name: Build place
+        run: rojo build default.project.json -o GhostHotelTycoon.rbxl
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: GhostHotelTycoon
+          path: ghost-hotel-tycoon/GhostHotelTycoon.rbxl
+
+      - name: Publish to Roblox
+        if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+        env:
+          ROBLOX_API_KEY: ${{ secrets.ROBLOX_API_KEY }}
+          UNIVERSE_ID: ${{ vars.ROBLOX_UNIVERSE_ID }}
+          PLACE_ID: ${{ vars.ROBLOX_PLACE_ID }}
+        run: |
+          if [ -z "$ROBLOX_API_KEY" ] || [ -z "$UNIVERSE_ID" ] || [ -z "$PLACE_ID" ]; then
+            echo "::notice::Publishing skipped: set the ROBLOX_API_KEY secret and ROBLOX_UNIVERSE_ID / ROBLOX_PLACE_ID variables."
+            exit 0
+          fi
+          curl --fail-with-body -sS -X POST \
+            "https://apis.roblox.com/universes/v1/${UNIVERSE_ID}/places/${PLACE_ID}/versions?versionType=Published" \
+            -H "x-api-key: ${ROBLOX_API_KEY}" \
+            -H "Content-Type: application/octet-stream" \
+            --data-binary @GhostHotelTycoon.rbxl

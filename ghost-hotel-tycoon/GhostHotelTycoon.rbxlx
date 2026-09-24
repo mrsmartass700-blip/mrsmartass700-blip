@@ -1,0 +1,5433 @@
+<roblox version="4">
+  <Item class="Lighting" referent="0">
+    <Properties>
+      <string name="Name">Lighting</string>
+      <float name="ClockTime">20.8</float>
+    </Properties>
+  </Item>
+  <Item class="Players" referent="1">
+    <Properties>
+      <string name="Name">Players</string>
+      <bool name="CharacterAutoLoads">false</bool>
+    </Properties>
+  </Item>
+  <Item class="ReplicatedStorage" referent="2">
+    <Properties>
+      <string name="Name">ReplicatedStorage</string>
+    </Properties>
+    <Item class="Folder" referent="3">
+      <Properties>
+        <string name="Name">Shared</string>
+      </Properties>
+      <Item class="ModuleScript" referent="4">
+        <Properties>
+          <string name="Name">Config</string>
+          <string name="Source"><![CDATA[-- Central game configuration: economy, ghosts, odds and monetization.
+-- Everything a designer might want to tune lives here.
+
+local Config = {}
+
+Config.GameName = "Ghost Hotel Tycoon"
+
+--------------------------------------------------------------------------
+-- Economy
+--------------------------------------------------------------------------
+Config.StartingCash = 0
+Config.ReleaseSeconds = 30 -- releasing a ghost pays this many seconds of its income
+Config.OfflineEarningsRate = 0.1 -- fraction of income earned while offline
+Config.OfflineEarningsMaxSeconds = 2 * 60 * 60
+Config.PremiumIncomeBonus = 0.1 -- Roblox Premium members earn +10%
+Config.VipIncomeBonus = 0.2
+
+Config.Rebirth = {
+	BaseCost = 1_000_000,
+	CostGrowth = 4, -- every rebirth costs 4x the previous one
+	IncomeBonus = 0.5, -- +50% income per rebirth
+	VacuumBonus = 0.15, -- +15% vacuum power per rebirth
+	StartCash = 250, -- cash you restart with after a rebirth
+}
+
+--------------------------------------------------------------------------
+-- Hotel
+--------------------------------------------------------------------------
+Config.MaxPlots = 8 -- set the place's server size to 8
+Config.RoomsPerSide = 7 -- rooms are built in two rows
+Config.VipRooms = 2 -- the last room of each row is VIP-only
+Config.StartRooms = 4 -- rooms a brand new hotel owns
+Config.RoomBaseCost = 250 -- price of the first room you unlock
+Config.RoomCostGrowth = 2.2
+
+-- Classic tycoon build buttons. They appear one after another in front of
+-- your hotel; buying one builds that part of the hotel and raises its
+-- star rating, which boosts all income.
+Config.HotelBuilds = {
+	{ Key = "Fence", Name = "Spooky Fence", Price = 50, IncomeBonus = 0.05 },
+	{ Key = "Lamps", Name = "Ghost Lamps", Price = 400, IncomeBonus = 0.1 },
+	{ Key = "Sign", Name = "Neon Sign", Price = 2_000, IncomeBonus = 0.1 },
+	{ Key = "Carpet", Name = "Red Carpet", Price = 8_000, IncomeBonus = 0.15 },
+	{ Key = "Fountain", Name = "Slime Fountain", Price = 35_000, IncomeBonus = 0.2 },
+	{ Key = "Tower", Name = "Haunted Tower", Price = 150_000, IncomeBonus = 0.25 },
+	{ Key = "Garden", Name = "Pumpkin Garden", Price = 600_000, IncomeBonus = 0.3 },
+	{ Key = "Moon", Name = "Blood Moon Beacon", Price = 2_500_000, IncomeBonus = 0.5 },
+}
+
+Config.Upgrades = {
+	Vacuum = {
+		Name = "Vacuum",
+		Icon = "🌀",
+		MaxLevel = 10,
+		BaseCost = 100,
+		CostGrowth = 2.6,
+		PowerPerLevel = 0.35, -- capture speed +35% per level
+	},
+	Backpack = {
+		Name = "Backpack",
+		Icon = "🎒",
+		MaxLevel = 8,
+		BaseCost = 150,
+		CostGrowth = 2.8,
+		BaseCapacity = 3,
+		CapacityPerLevel = 1,
+	},
+}
+
+--------------------------------------------------------------------------
+-- Ghost hunting
+--------------------------------------------------------------------------
+Config.MaxGhosts = 22
+Config.SpawnInterval = 1.8 -- seconds between ghost spawns
+Config.GhostLifetime = 80 -- seconds before an uncaught ghost fades away
+Config.VacuumRange = 24
+Config.VacuumPullSpeed = 3 -- studs/s a ghost is dragged toward you
+Config.ProgressDecay = 0.35 -- capture progress lost per second when nobody vacuums
+
+Config.WalkSpeed = 18
+Config.SpeedCoilWalkSpeed = 27
+Config.HomeTeleportCooldown = 8
+
+-- Witching Hour: a server-wide event with better odds and more ghosts.
+Config.WitchingHour = {
+	Every = 10 * 60, -- happens naturally this often
+	Duration = 60,
+	Luck = 3,
+	SpawnRate = 2,
+}
+
+--------------------------------------------------------------------------
+-- Rarities (ordered from most common to rarest)
+-- CaptureTime: seconds of vacuuming needed at vacuum power 1.
+--------------------------------------------------------------------------
+Config.Rarities = {
+	{ Name = "Common", Color = Color3.fromRGB(215, 215, 225), Weight = 58, Size = 2.6, CaptureTime = 1, Speed = 4 },
+	{ Name = "Uncommon", Color = Color3.fromRGB(95, 225, 115), Weight = 26, Size = 3, CaptureTime = 1.8, Speed = 5 },
+	{ Name = "Rare", Color = Color3.fromRGB(70, 155, 255), Weight = 11, Size = 3.4, CaptureTime = 3, Speed = 6 },
+	{ Name = "Epic", Color = Color3.fromRGB(185, 95, 255), Weight = 4, Size = 4, CaptureTime = 4.5, Speed = 7 },
+	{ Name = "Legendary", Color = Color3.fromRGB(255, 190, 40), Weight = 0.8, Size = 4.7, CaptureTime = 7, Speed = 8 },
+	{ Name = "Mythic", Color = Color3.fromRGB(255, 60, 95), Weight = 0.18, Size = 5.4, CaptureTime = 10, Speed = 9 },
+	{ Name = "Secret", Color = Color3.fromRGB(255, 255, 255), Weight = 0.02, Size = 6.3, CaptureTime = 15, Speed = 10 },
+}
+
+-- Luck multiplies the weight of every rarity from this index upwards.
+Config.LuckAffectsFromRarity = 3 -- Rare and better
+
+-- Rarities from this index upwards are announced to the whole server.
+Config.AnnounceFromRarity = 5 -- Legendary and better
+
+--------------------------------------------------------------------------
+-- Mutations: rolled for every ghost that spawns (rarest checked first).
+-- They multiply income. The Cauldron fuses 3 identical ghosts into one
+-- ghost of the next tier: none -> Gold -> Diamond -> Rainbow.
+--------------------------------------------------------------------------
+Config.Mutations = {
+	{ Name = "Gold", Chance = 0.05, Multiplier = 4, Color = Color3.fromRGB(255, 200, 45) },
+	{ Name = "Diamond", Chance = 0.01, Multiplier = 15, Color = Color3.fromRGB(140, 230, 255) },
+	{ Name = "Rainbow", Chance = 0.002, Multiplier = 50, Color = Color3.fromRGB(255, 120, 220) },
+}
+Config.FuseCount = 3
+
+--------------------------------------------------------------------------
+-- Ghosts. Shape: Classic | Round | Tall
+-- Hat: None | Crown | Witch | Halo | Horns | Top | Antenna | Stem | Bow
+--------------------------------------------------------------------------
+-- stylua: ignore start
+Config.Ghosts = {
+	-- Common
+	{ Id = "boo_blob", Name = "Boo Blob", Rarity = 1, Income = 1, Shape = "Round", Color = Color3.fromRGB(240, 240, 255), Accent = Color3.fromRGB(150, 150, 190), Hat = "None" },
+	{ Id = "sheet_sam", Name = "Sheet Sam", Rarity = 1, Income = 2, Shape = "Classic", Color = Color3.fromRGB(225, 225, 230), Accent = Color3.fromRGB(90, 90, 100), Hat = "Bow" },
+	{ Id = "pumpkin_puff", Name = "Pumpkin Puff", Rarity = 1, Income = 3, Shape = "Round", Color = Color3.fromRGB(255, 150, 50), Accent = Color3.fromRGB(70, 150, 60), Hat = "Stem" },
+	{ Id = "candle_kid", Name = "Candle Kid", Rarity = 1, Income = 4, Shape = "Tall", Color = Color3.fromRGB(250, 235, 200), Accent = Color3.fromRGB(255, 170, 40), Hat = "Antenna" },
+
+	-- Uncommon
+	{ Id = "slime_spook", Name = "Slime Spook", Rarity = 2, Income = 9, Shape = "Round", Color = Color3.fromRGB(120, 230, 90), Accent = Color3.fromRGB(60, 150, 50), Hat = "None" },
+	{ Id = "bat_boo", Name = "Bat Boo", Rarity = 2, Income = 15, Shape = "Classic", Color = Color3.fromRGB(120, 80, 170), Accent = Color3.fromRGB(40, 20, 60), Hat = "Horns" },
+	{ Id = "mummy_mo", Name = "Mummy Mo", Rarity = 2, Income = 22, Shape = "Tall", Color = Color3.fromRGB(230, 215, 175), Accent = Color3.fromRGB(170, 150, 110), Hat = "Bow" },
+
+	-- Rare
+	{ Id = "candy_wisp", Name = "Candy Wisp", Rarity = 3, Income = 55, Shape = "Classic", Color = Color3.fromRGB(255, 190, 90), Accent = Color3.fromRGB(255, 255, 255), Hat = "Stem" },
+	{ Id = "frost_phantom", Name = "Frost Phantom", Rarity = 3, Income = 85, Shape = "Tall", Color = Color3.fromRGB(170, 225, 255), Accent = Color3.fromRGB(80, 160, 255), Hat = "Crown" },
+	{ Id = "lantern_lurker", Name = "Lantern Lurker", Rarity = 3, Income = 130, Shape = "Round", Color = Color3.fromRGB(255, 230, 110), Accent = Color3.fromRGB(80, 60, 30), Hat = "Antenna" },
+
+	-- Epic
+	{ Id = "witch_wisp", Name = "Witch Wisp", Rarity = 4, Income = 320, Shape = "Classic", Color = Color3.fromRGB(170, 120, 255), Accent = Color3.fromRGB(35, 25, 50), Hat = "Witch" },
+	{ Id = "count_boocula", Name = "Count Boocula", Rarity = 4, Income = 500, Shape = "Tall", Color = Color3.fromRGB(235, 225, 240), Accent = Color3.fromRGB(180, 20, 40), Hat = "Top" },
+	{ Id = "skelly_shade", Name = "Skelly Shade", Rarity = 4, Income = 700, Shape = "Round", Color = Color3.fromRGB(245, 245, 235), Accent = Color3.fromRGB(30, 30, 30), Hat = "Horns" },
+
+	-- Legendary
+	{ Id = "pumpking", Name = "Pumpking", Rarity = 5, Income = 2_500, Shape = "Round", Color = Color3.fromRGB(255, 120, 20), Accent = Color3.fromRGB(255, 215, 60), Hat = "Crown" },
+	{ Id = "moon_wraith", Name = "Moon Wraith", Rarity = 5, Income = 4_500, Shape = "Tall", Color = Color3.fromRGB(200, 215, 255), Accent = Color3.fromRGB(110, 130, 255), Hat = "Halo" },
+
+	-- Mythic
+	{ Id = "phantom_pharaoh", Name = "Phantom Pharaoh", Rarity = 6, Income = 25_000, Shape = "Tall", Color = Color3.fromRGB(80, 120, 230), Accent = Color3.fromRGB(255, 205, 60), Hat = "Crown" },
+	{ Id = "void_kraken", Name = "Void Kraken", Rarity = 6, Income = 45_000, Shape = "Classic", Color = Color3.fromRGB(70, 30, 110), Accent = Color3.fromRGB(0, 255, 200), Hat = "Antenna" },
+
+	-- Secret
+	{ Id = "glitch_ghost", Name = "Glitch Ghost", Rarity = 7, Income = 450_000, Shape = "Classic", Color = Color3.fromRGB(20, 20, 25), Accent = Color3.fromRGB(0, 255, 90), Hat = "Antenna" },
+	{ Id = "headless_hotelier", Name = "Headless Hotelier", Rarity = 7, Income = 1_000_000, Shape = "Tall", Color = Color3.fromRGB(40, 40, 50), Accent = Color3.fromRGB(255, 60, 60), Hat = "Top" },
+}
+-- stylua: ignore end
+
+Config.GhostsById = {}
+for _, ghost in Config.Ghosts do
+	Config.GhostsById[ghost.Id] = ghost
+end
+
+Config.MutationsByName = {}
+for index, mutation in Config.Mutations do
+	mutation.Tier = index
+	Config.MutationsByName[mutation.Name] = mutation
+end
+
+--------------------------------------------------------------------------
+-- Monetization
+--
+-- 1. Publish the place, then create the Game Passes and Developer Products
+--    in the Creator Dashboard (Monetization tab) using the names below.
+-- 2. Game Passes: paste each pass ID into `Id`.
+-- 3. Developer Products: either paste the ID into `Id`, or leave it at 0 —
+--    the server looks products up by their exact `Name` at startup.
+--
+-- `SuggestedPrice` is only a hint for the dashboard; the in-game shop shows
+-- the real price that Roblox reports.
+--------------------------------------------------------------------------
+Config.GamePasses = {
+	{
+		Key = "DoubleCash",
+		Id = 0,
+		Name = "2x Cash",
+		Icon = "💰",
+		Description = "Every ghost pays double. Forever.",
+		SuggestedPrice = 199,
+	},
+	{
+		Key = "VIP",
+		Id = 0,
+		Name = "VIP",
+		Icon = "👑",
+		Description = "2 golden VIP rooms, +20% income and a [VIP] chat tag.",
+		SuggestedPrice = 299,
+	},
+	{
+		Key = "MegaVacuum",
+		Id = 0,
+		Name = "Mega Vacuum",
+		Icon = "🌪️",
+		Description = "Capture ghosts twice as fast.",
+		SuggestedPrice = 249,
+	},
+	{
+		Key = "BigBackpack",
+		Id = 0,
+		Name = "Big Backpack",
+		Icon = "🎒",
+		Description = "Carry 5 more ghosts at once.",
+		SuggestedPrice = 149,
+	},
+	{
+		Key = "SpeedCoil",
+		Id = 0,
+		Name = "Speed Coil",
+		Icon = "⚡",
+		Description = "Run 50% faster. Beat everyone to the rare ghosts.",
+		SuggestedPrice = 99,
+	},
+}
+
+Config.MegaVacuumMultiplier = 2
+Config.BigBackpackBonus = 5
+
+Config.Products = {
+	{
+		Key = "CashSmall",
+		Id = 0,
+		Name = "Small Cash Pack",
+		Icon = "💵",
+		Kind = "Cash",
+		Minutes = 10, -- scales with the buyer's income
+		MinAmount = 1_000,
+		SuggestedPrice = 25,
+	},
+	{
+		Key = "CashMedium",
+		Id = 0,
+		Name = "Medium Cash Pack",
+		Icon = "💰",
+		Kind = "Cash",
+		Minutes = 60,
+		MinAmount = 10_000,
+		SuggestedPrice = 99,
+	},
+	{
+		Key = "CashLarge",
+		Id = 0,
+		Name = "Huge Cash Pack",
+		Icon = "🏦",
+		Kind = "Cash",
+		Minutes = 300,
+		MinAmount = 100_000,
+		SuggestedPrice = 399,
+	},
+	{
+		Key = "WitchingHour",
+		Id = 0,
+		Name = "Summon Witching Hour",
+		Icon = "🌕",
+		Kind = "WitchingHour",
+		Duration = 5 * 60, -- stacks: buying again adds more time
+		SuggestedPrice = 149,
+	},
+}
+
+Config.GamePassesByKey = {}
+for _, pass in Config.GamePasses do
+	Config.GamePassesByKey[pass.Key] = pass
+end
+
+Config.ProductsByKey = {}
+for _, product in Config.Products do
+	Config.ProductsByKey[product.Key] = product
+end
+
+return Config
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="5">
+        <Properties>
+          <string name="Name">Format</string>
+          <string name="Source"><![CDATA[-- Number / time formatting helpers shared by server and client.
+
+local Format = {}
+
+local SUFFIXES = { "", "K", "M", "B", "T", "Qa", "Qi", "Sx", "Sp", "Oc", "No", "Dc" }
+
+local function trimZeros(text: string): string
+	if string.find(text, "%.") then
+		text = string.gsub(text, "0+$", "")
+		text = string.gsub(text, "%.$", "")
+	end
+	return text
+end
+
+-- 1234 -> "1.23K", 15000000 -> "15M"
+function Format.abbreviate(value: number): string
+	if value ~= value then
+		return "0"
+	end
+	local negative = value < 0
+	value = math.abs(value)
+
+	local tier = 1
+	while value >= 1000 and tier < #SUFFIXES do
+		value /= 1000
+		tier += 1
+	end
+
+	-- Rounding can push 999.999 up to "1000", so carry into the next tier.
+	local decimals = if value >= 100 then 0 elseif value >= 10 then 1 else 2
+	local rounded = math.floor(value * 10 ^ decimals + 0.5) / 10 ^ decimals
+	if rounded >= 1000 and tier < #SUFFIXES then
+		rounded /= 1000
+		tier += 1
+		decimals = 2
+	end
+
+	local text = if tier == 1
+		then tostring(math.floor(rounded + 0.5))
+		else trimZeros(string.format("%." .. decimals .. "f", rounded))
+
+	return (if negative then "-" else "") .. text .. SUFFIXES[tier]
+end
+
+function Format.money(value: number): string
+	return "$" .. Format.abbreviate(value)
+end
+
+function Format.perSecond(value: number): string
+	return "$" .. Format.abbreviate(value) .. "/s"
+end
+
+-- 75 -> "1:15", 3725 -> "1:02:05"
+function Format.time(seconds: number): string
+	seconds = math.max(0, math.floor(seconds))
+	local hours = seconds // 3600
+	local minutes = (seconds % 3600) // 60
+	local secs = seconds % 60
+	if hours > 0 then
+		return string.format("%d:%02d:%02d", hours, minutes, secs)
+	end
+	return string.format("%d:%02d", minutes, secs)
+end
+
+-- 0.18 -> "0.18%", 58 -> "58%", 0.0021 -> "0.0021%"
+function Format.percent(value: number): string
+	if value >= 10 then
+		return string.format("%.1f%%", value):gsub("%.0%%", "%%")
+	end
+	if value >= 0.1 then
+		return trimZeros(string.format("%.2f", value)) .. "%"
+	end
+	return trimZeros(string.format("%.4f", value)) .. "%"
+end
+
+return Format
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="6">
+        <Properties>
+          <string name="Name">Formulas</string>
+          <string name="Source"><![CDATA[-- Pure economy formulas shared by server (authoritative) and client (display).
+
+local Config = require(script.Parent.Config)
+
+local Formulas = {}
+
+export type Stats = {
+	Rebirths: number,
+	Builds: number,
+	DoubleCash: boolean,
+	VIP: boolean,
+	Premium: boolean,
+}
+
+--------------------------------------------------------------------------
+-- Ghost value
+--------------------------------------------------------------------------
+function Formulas.mutationMultiplier(mutation: string?): number
+	local info = mutation and Config.MutationsByName[mutation]
+	return if info then info.Multiplier else 1
+end
+
+function Formulas.ghostIncome(ghostId: string, mutation: string?): number
+	local ghost = Config.GhostsById[ghostId]
+	if not ghost then
+		return 0
+	end
+	return ghost.Income * Formulas.mutationMultiplier(mutation)
+end
+
+function Formulas.releaseValue(ghostId: string, mutation: string?, incomeMultiplier: number): number
+	return math.floor(Formulas.ghostIncome(ghostId, mutation) * incomeMultiplier * Config.ReleaseSeconds)
+end
+
+-- Next mutation tier for the Cauldron, or nil when already at the top.
+function Formulas.nextMutation(mutation: string?): string?
+	local tier = if mutation then Config.MutationsByName[mutation].Tier else 0
+	local nextInfo = Config.Mutations[tier + 1]
+	return nextInfo and nextInfo.Name
+end
+
+--------------------------------------------------------------------------
+-- Multipliers
+--------------------------------------------------------------------------
+function Formulas.buildBonus(builds: number): number
+	local bonus = 0
+	for index = 1, math.min(builds, #Config.HotelBuilds) do
+		bonus += Config.HotelBuilds[index].IncomeBonus
+	end
+	return bonus
+end
+
+function Formulas.incomeMultiplier(stats: Stats): number
+	local rebirth = 1 + stats.Rebirths * Config.Rebirth.IncomeBonus
+	local additive = 1 + Formulas.buildBonus(stats.Builds)
+	if stats.VIP then
+		additive += Config.VipIncomeBonus
+	end
+	if stats.Premium then
+		additive += Config.PremiumIncomeBonus
+	end
+	local double = if stats.DoubleCash then 2 else 1
+	return rebirth * additive * double
+end
+
+function Formulas.vacuumPower(level: number, rebirths: number, mega: boolean): number
+	local upgrade = Config.Upgrades.Vacuum
+	local power = 1 + (level - 1) * upgrade.PowerPerLevel
+	power *= 1 + rebirths * Config.Rebirth.VacuumBonus
+	if mega then
+		power *= Config.MegaVacuumMultiplier
+	end
+	return power
+end
+
+function Formulas.backpackCapacity(level: number, bigBackpack: boolean): number
+	local upgrade = Config.Upgrades.Backpack
+	local capacity = upgrade.BaseCapacity + (level - 1) * upgrade.CapacityPerLevel
+	if bigBackpack then
+		capacity += Config.BigBackpackBonus
+	end
+	return capacity
+end
+
+--------------------------------------------------------------------------
+-- Costs
+--------------------------------------------------------------------------
+-- Cost to go from `level` to `level + 1`, or nil when maxed.
+function Formulas.upgradeCost(kind: string, level: number): number?
+	local upgrade = Config.Upgrades[kind]
+	if not upgrade or level >= upgrade.MaxLevel then
+		return nil
+	end
+	return math.floor(upgrade.BaseCost * upgrade.CostGrowth ^ (level - 1))
+end
+
+function Formulas.rebirthCost(rebirths: number): number
+	return Config.Rebirth.BaseCost * Config.Rebirth.CostGrowth ^ rebirths
+end
+
+function Formulas.cashProductAmount(product, incomePerSecond: number): number
+	return math.max(product.MinAmount, math.floor(incomePerSecond * product.Minutes * 60))
+end
+
+--------------------------------------------------------------------------
+-- Rooms
+--
+-- Rooms are numbered 1..N (row A then row B). The last room of every row
+-- is a VIP room. Regular rooms unlock alternating between the two rows.
+--------------------------------------------------------------------------
+Formulas.TotalRooms = Config.RoomsPerSide * 2
+
+local vipRooms: { [number]: boolean } = {}
+local roomOrder: { number } = {}
+do
+	local perSide = Config.RoomsPerSide
+	local vipPerSide = Config.VipRooms // 2
+	for index = 1, vipPerSide do
+		vipRooms[perSide - index + 1] = true
+		vipRooms[perSide * 2 - index + 1] = true
+	end
+	for row = 1, perSide do
+		for _, room in { row, perSide + row } do
+			if not vipRooms[room] then
+				table.insert(roomOrder, room)
+			end
+		end
+	end
+end
+
+Formulas.RoomOrder = roomOrder
+Formulas.RegularRooms = #roomOrder
+
+function Formulas.isVipRoom(room: number): boolean
+	return vipRooms[room] == true
+end
+
+-- Cost of unlocking the next regular room when `unlocked` are owned.
+function Formulas.roomCost(unlocked: number): number?
+	if unlocked >= Formulas.RegularRooms then
+		return nil
+	end
+	local extra = unlocked - Config.StartRooms
+	return math.floor(Config.RoomBaseCost * Config.RoomCostGrowth ^ math.max(0, extra))
+end
+
+-- Is the room usable for a hotel with `unlocked` regular rooms?
+function Formulas.isRoomOpen(room: number, unlocked: number, vip: boolean): boolean
+	if vipRooms[room] then
+		return vip
+	end
+	local position = table.find(roomOrder, room)
+	return position ~= nil and position <= unlocked
+end
+
+-- The next locked regular room (the one showing the "unlock" prompt).
+function Formulas.nextLockedRoom(unlocked: number): number?
+	return roomOrder[unlocked + 1]
+end
+
+return Formulas
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="7">
+        <Properties>
+          <string name="Name">GhostFactory</string>
+          <string name="Source"><![CDATA[-- Builds ghost models out of plain parts (no uploaded assets needed).
+-- Used by the server for real ghosts and by the client for backpack minis.
+--
+-- Every ghost is a Model whose PrimaryPart "Root" is an invisible part;
+-- all visible parts are welded to it. Front of the ghost is -Z.
+
+local Config = require(script.Parent.Config)
+local Format = require(script.Parent.Format)
+local Formulas = require(script.Parent.Formulas)
+
+local GhostFactory = {}
+
+export type BuildOptions = {
+	Scale: number?,
+	Billboard: boolean?,
+	Light: boolean?,
+}
+
+local CHEEK_COLOR = Color3.fromRGB(255, 150, 175)
+local EYE_COLOR = Color3.fromRGB(25, 20, 35)
+local VERTICAL = CFrame.Angles(0, 0, math.pi / 2)
+
+-- Per shape: body size factors, body centre height and where the face sits.
+local SHAPES = {
+	Classic = { Body = Vector3.new(0.9, 1.1, 0.9), BodyY = 0.1, Top = 0.65, Front = 0.42, Skirt = true },
+	Round = { Body = Vector3.new(0.95, 0.95, 0.95), BodyY = 0, Top = 0.47, Front = 0.44, Skirt = false },
+	Tall = { Body = Vector3.new(0.75, 1.4, 0.75), BodyY = 0.15, Top = 0.85, Front = 0.35, Skirt = true },
+}
+
+local function makePart(
+	model: Model,
+	root: BasePart,
+	props: { [string]: any },
+	offset: CFrame,
+	mesh: Enum.MeshType?
+): BasePart
+	local part = Instance.new("Part")
+	part.Anchored = false
+	part.CanCollide = false
+	part.CanTouch = false
+	part.CanQuery = false
+	part.Massless = true
+	part.CastShadow = false
+	part.TopSurface = Enum.SurfaceType.Smooth
+	part.BottomSurface = Enum.SurfaceType.Smooth
+	part.Material = Enum.Material.SmoothPlastic
+	for key, value in props do
+		(part :: any)[key] = value
+	end
+	if mesh then
+		local specialMesh = Instance.new("SpecialMesh")
+		specialMesh.MeshType = mesh
+		specialMesh.Parent = part
+	end
+	part.CFrame = root.CFrame * offset
+	local weld = Instance.new("WeldConstraint")
+	weld.Part0 = root
+	weld.Part1 = part
+	weld.Parent = part
+	part.Parent = model
+	return part
+end
+
+local function ellipsoid(model, root, name, size: Vector3, color: Color3, offset: CFrame): BasePart
+	return makePart(model, root, { Name = name, Size = size, Color = color }, offset, Enum.MeshType.Sphere)
+end
+
+local function cylinder(model, root, name, height: number, diameter: number, color: Color3, offset: CFrame): BasePart
+	return makePart(model, root, {
+		Name = name,
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(height, diameter, diameter),
+		Color = color,
+	}, offset * VERTICAL)
+end
+
+local function buildHat(model: Model, root: BasePart, hat: string, s: number, top: number, accent: Color3)
+	local y = top * s
+	if hat == "Crown" then
+		local band = cylinder(model, root, "Hat", 0.25 * s, 0.5 * s, accent, CFrame.new(0, y + 0.08 * s, 0))
+		band.Material = Enum.Material.Metal
+		for index = 0, 4 do
+			local angle = index / 5 * math.pi * 2
+			local spike = ellipsoid(
+				model,
+				root,
+				"Hat",
+				Vector3.new(0.1, 0.18, 0.1) * s,
+				accent,
+				CFrame.new(math.cos(angle) * 0.22 * s, y + 0.26 * s, math.sin(angle) * 0.22 * s)
+			)
+			spike.Material = Enum.Material.Metal
+		end
+	elseif hat == "Witch" then
+		cylinder(model, root, "Hat", 0.05 * s, 0.95 * s, accent, CFrame.new(0, y, 0))
+		cylinder(model, root, "Hat", 0.22 * s, 0.5 * s, accent, CFrame.new(0, y + 0.13 * s, 0))
+		cylinder(model, root, "Hat", 0.22 * s, 0.34 * s, accent, CFrame.new(0.02 * s, y + 0.34 * s, 0.02 * s))
+		cylinder(model, root, "Hat", 0.2 * s, 0.18 * s, accent, CFrame.new(0.06 * s, y + 0.53 * s, 0.05 * s))
+		cylinder(model, root, "Hat", 0.06 * s, 0.52 * s, Color3.fromRGB(150, 70, 255), CFrame.new(0, y + 0.06 * s, 0))
+	elseif hat == "Halo" then
+		local halo = cylinder(model, root, "Hat", 0.05 * s, 0.6 * s, accent, CFrame.new(0, y + 0.22 * s, 0))
+		halo.Material = Enum.Material.Neon
+	elseif hat == "Horns" then
+		for _, side in { -1, 1 } do
+			ellipsoid(
+				model,
+				root,
+				"Hat",
+				Vector3.new(0.12, 0.32, 0.12) * s,
+				accent,
+				CFrame.new(side * 0.22 * s, y + 0.02 * s, 0) * CFrame.Angles(0, 0, -side * 0.45)
+			)
+		end
+	elseif hat == "Top" then
+		cylinder(model, root, "Hat", 0.05 * s, 0.68 * s, accent, CFrame.new(0, y, 0))
+		cylinder(model, root, "Hat", 0.42 * s, 0.42 * s, accent, CFrame.new(0, y + 0.23 * s, 0))
+		cylinder(model, root, "Hat", 0.07 * s, 0.43 * s, Color3.fromRGB(200, 30, 50), CFrame.new(0, y + 0.08 * s, 0))
+	elseif hat == "Antenna" then
+		cylinder(model, root, "Hat", 0.35 * s, 0.05 * s, Color3.fromRGB(60, 60, 70), CFrame.new(0, y + 0.12 * s, 0))
+		local bulb = ellipsoid(model, root, "Hat", Vector3.one * 0.16 * s, accent, CFrame.new(0, y + 0.32 * s, 0))
+		bulb.Material = Enum.Material.Neon
+	elseif hat == "Stem" then
+		cylinder(
+			model,
+			root,
+			"Hat",
+			0.22 * s,
+			0.12 * s,
+			Color3.fromRGB(80, 140, 60),
+			CFrame.new(0, y + 0.05 * s, 0) * CFrame.Angles(0.3, 0, 0)
+		)
+		ellipsoid(
+			model,
+			root,
+			"Hat",
+			Vector3.new(0.25, 0.06, 0.14) * s,
+			accent,
+			CFrame.new(0.14 * s, y + 0.1 * s, 0) * CFrame.Angles(0, 0, 0.4)
+		)
+	elseif hat == "Bow" then
+		for _, side in { -1, 1 } do
+			ellipsoid(
+				model,
+				root,
+				"Hat",
+				Vector3.new(0.2, 0.14, 0.08) * s,
+				accent,
+				CFrame.new(0.2 * s + side * 0.12 * s, y - 0.02 * s, -0.1 * s) * CFrame.Angles(0, 0, side * 0.3)
+			)
+		end
+		ellipsoid(model, root, "Hat", Vector3.one * 0.08 * s, accent, CFrame.new(0.2 * s, y - 0.02 * s, -0.12 * s))
+	end
+end
+
+local function applyMutation(model: Model, bodyParts: { BasePart }, mutation: string?)
+	local info = mutation and Config.MutationsByName[mutation]
+	if not info then
+		return
+	end
+	for _, part in bodyParts do
+		part.Color = info.Color
+		if info.Name == "Gold" then
+			part.Material = Enum.Material.Foil
+			part.Transparency = 0
+		elseif info.Name == "Diamond" then
+			part.Material = Enum.Material.Glass
+			part.Transparency = 0.25
+		elseif info.Name == "Rainbow" then
+			part:AddTag("Rainbow")
+		end
+	end
+	local sparkles = Instance.new("Sparkles")
+	sparkles.SparkleColor = info.Color
+	sparkles.Parent = bodyParts[1]
+	model:SetAttribute("Mutation", info.Name)
+end
+
+local function buildBillboard(root: BasePart, ghost, mutation: string?, s: number)
+	local rarity = Config.Rarities[ghost.Rarity]
+
+	local gui = Instance.new("BillboardGui")
+	gui.Name = "Info"
+	gui.Size = UDim2.fromOffset(220, 96)
+	gui.StudsOffset = Vector3.new(0, s * 0.9 + 1.4, 0)
+	gui.MaxDistance = 80
+	gui.LightInfluence = 0
+	gui.ResetOnSpawn = false
+
+	local layout = Instance.new("UIListLayout")
+	layout.SortOrder = Enum.SortOrder.LayoutOrder
+	layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	layout.VerticalAlignment = Enum.VerticalAlignment.Bottom
+	layout.Parent = gui
+
+	local function label(name: string, text: string, color: Color3, height: number, order: number): TextLabel
+		local textLabel = Instance.new("TextLabel")
+		textLabel.Name = name
+		textLabel.BackgroundTransparency = 1
+		textLabel.Size = UDim2.new(1, 0, 0, height)
+		textLabel.Font = Enum.Font.FredokaOne
+		textLabel.TextScaled = true
+		textLabel.Text = text
+		textLabel.TextColor3 = color
+		textLabel.TextStrokeTransparency = 0.2
+		textLabel.LayoutOrder = order
+		textLabel.Parent = gui
+		return textLabel
+	end
+
+	if mutation then
+		label("Mutation", mutation, Config.MutationsByName[mutation].Color, 18, 1)
+	end
+	label("GhostName", ghost.Name, Color3.new(1, 1, 1), 24, 2)
+	local rarityLabel = label("Rarity", rarity.Name, rarity.Color, 20, 3)
+	if rarity.Name == "Secret" or rarity.Name == "Mythic" then
+		local gradient = Instance.new("UIGradient")
+		gradient.Color = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 80, 80)),
+			ColorSequenceKeypoint.new(0.33, Color3.fromRGB(255, 230, 80)),
+			ColorSequenceKeypoint.new(0.66, Color3.fromRGB(80, 220, 255)),
+			ColorSequenceKeypoint.new(1, Color3.fromRGB(220, 90, 255)),
+		})
+		gradient.Parent = rarityLabel
+		rarityLabel.TextColor3 = Color3.new(1, 1, 1)
+		rarityLabel:AddTag("RainbowGradient")
+	end
+	label("Income", Format.perSecond(Formulas.ghostIncome(ghost.Id, mutation)), Color3.fromRGB(120, 255, 120), 20, 4)
+
+	local bar = Instance.new("Frame")
+	bar.Name = "Progress"
+	bar.Size = UDim2.new(0.8, 0, 0, 10)
+	bar.BackgroundColor3 = Color3.fromRGB(30, 20, 45)
+	bar.BorderSizePixel = 0
+	bar.Visible = false
+	bar.LayoutOrder = 5
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(1, 0)
+	corner.Parent = bar
+	local fill = Instance.new("Frame")
+	fill.Name = "Fill"
+	fill.Size = UDim2.fromScale(0, 1)
+	fill.BackgroundColor3 = Color3.fromRGB(120, 255, 200)
+	fill.BorderSizePixel = 0
+	fill.Parent = bar
+	corner:Clone().Parent = fill
+	bar.Parent = gui
+
+	gui.Parent = root
+end
+
+function GhostFactory.getSize(ghostId: string, scale: number?): number
+	local ghost = Config.GhostsById[ghostId]
+	return Config.Rarities[ghost.Rarity].Size * (scale or 1)
+end
+
+function GhostFactory.build(ghostId: string, mutation: string?, options: BuildOptions?): Model
+	local opts: BuildOptions = options or {}
+	local ghost = assert(Config.GhostsById[ghostId], "Unknown ghost " .. tostring(ghostId))
+	local rarity = Config.Rarities[ghost.Rarity]
+	local shape = SHAPES[ghost.Shape] or SHAPES.Classic
+	local s = rarity.Size * (opts.Scale or 1)
+
+	local model = Instance.new("Model")
+	model.Name = ghost.Name
+	model:SetAttribute("GhostId", ghost.Id)
+
+	local root = Instance.new("Part")
+	root.Name = "Root"
+	root.Size = Vector3.one * s
+	root.Transparency = 1
+	root.Anchored = true
+	root.CanCollide = false
+	root.CanTouch = false
+	root.CanQuery = false
+	root.CastShadow = false
+	root.CFrame = CFrame.new()
+	root.Parent = model
+	model.PrimaryPart = root
+
+	local bodyParts: { BasePart } = {}
+	local function body(part: BasePart)
+		part.Transparency = 0.12
+		table.insert(bodyParts, part)
+	end
+
+	body(ellipsoid(model, root, "Body", shape.Body * s, ghost.Color, CFrame.new(0, shape.BodyY * s, 0)))
+
+	if shape.Skirt then
+		local width = shape.Body.X * s
+		for index, x in { -0.32, 0, 0.32 } do
+			local wobble = if index == 2 then 0.06 else -0.02
+			body(
+				ellipsoid(
+					model,
+					root,
+					"Skirt",
+					Vector3.new(0.36 * width, 0.42 * width, 0.36 * width),
+					ghost.Color,
+					CFrame.new(x * width, (shape.BodyY - shape.Body.Y * 0.45 - wobble) * s, 0)
+				)
+			)
+		end
+	else
+		body(ellipsoid(model, root, "Tail", Vector3.one * 0.35 * s, ghost.Color, CFrame.new(0, -0.5 * s, 0.22 * s)))
+	end
+
+	for _, side in { -1, 1 } do
+		body(
+			ellipsoid(
+				model,
+				root,
+				"Arm",
+				Vector3.new(0.22, 0.34, 0.22) * s,
+				ghost.Color,
+				CFrame.new(side * shape.Body.X * 0.52 * s, shape.BodyY * s - 0.05 * s, 0)
+					* CFrame.Angles(0, 0, side * 0.6)
+			)
+		)
+	end
+
+	-- Face
+	local front = -shape.Front * s
+	for _, side in { -1, 1 } do
+		ellipsoid(
+			model,
+			root,
+			"Eye",
+			Vector3.new(0.15, 0.25, 0.08) * s,
+			EYE_COLOR,
+			CFrame.new(side * 0.17 * s, (shape.BodyY + 0.14) * s, front)
+		)
+		local shine = ellipsoid(
+			model,
+			root,
+			"EyeShine",
+			Vector3.one * 0.06 * s,
+			Color3.new(1, 1, 1),
+			CFrame.new(side * 0.17 * s + 0.03 * s, (shape.BodyY + 0.2) * s, front - 0.04 * s)
+		)
+		shine.Material = Enum.Material.Neon
+		local cheek = ellipsoid(
+			model,
+			root,
+			"Cheek",
+			Vector3.new(0.14, 0.08, 0.05) * s,
+			CHEEK_COLOR,
+			CFrame.new(side * shape.Body.X * 0.3 * s, (shape.BodyY - 0.02) * s, -shape.Body.Z * 0.4 * s)
+		)
+		cheek.Transparency = 0.35
+	end
+	ellipsoid(
+		model,
+		root,
+		"Mouth",
+		Vector3.new(0.13, 0.11, 0.06) * s,
+		EYE_COLOR,
+		CFrame.new(0, (shape.BodyY - 0.06) * s, front + 0.01 * s)
+	)
+
+	buildHat(model, root, ghost.Hat, s, shape.Top + shape.BodyY * 0.2, ghost.Accent)
+	applyMutation(model, bodyParts, mutation)
+
+	if opts.Light ~= false and (ghost.Rarity >= 3 or mutation ~= nil) then
+		local light = Instance.new("PointLight")
+		light.Color = if mutation then Config.MutationsByName[mutation].Color else rarity.Color
+		light.Range = math.clamp(s * 2.5, 8, 18)
+		light.Brightness = 1.5
+		light.Shadows = false
+		light.Parent = root
+	end
+
+	if opts.Billboard ~= false then
+		buildBillboard(root, ghost, mutation, s)
+	end
+
+	model:SetAttribute("Rarity", ghost.Rarity)
+	return model
+end
+
+return GhostFactory
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="8">
+        <Properties>
+          <string name="Name">Odds</string>
+          <string name="Source"><![CDATA[-- Rarity / mutation odds. Shared so the shop can show exact chances.
+
+local Config = require(script.Parent.Config)
+
+local Odds = {}
+
+local ghostsByRarity: { [number]: { any } } = {}
+for _, ghost in Config.Ghosts do
+	ghostsByRarity[ghost.Rarity] = ghostsByRarity[ghost.Rarity] or {}
+	table.insert(ghostsByRarity[ghost.Rarity], ghost)
+end
+
+function Odds.getWeights(luck: number): { number }
+	local weights = {}
+	for index, rarity in Config.Rarities do
+		local weight = rarity.Weight
+		if index >= Config.LuckAffectsFromRarity then
+			weight *= luck
+		end
+		weights[index] = weight
+	end
+	return weights
+end
+
+-- Chance (in percent) of every rarity for the given luck multiplier.
+function Odds.getChances(luck: number): { number }
+	local weights = Odds.getWeights(luck)
+	local total = 0
+	for _, weight in weights do
+		total += weight
+	end
+	local chances = {}
+	for index, weight in weights do
+		chances[index] = weight / total * 100
+	end
+	return chances
+end
+
+function Odds.rollRarity(luck: number, rng: Random): number
+	local weights = Odds.getWeights(luck)
+	local total = 0
+	for _, weight in weights do
+		total += weight
+	end
+	local roll = rng:NextNumber() * total
+	for index, weight in weights do
+		roll -= weight
+		if roll <= 0 then
+			return index
+		end
+	end
+	return #weights
+end
+
+function Odds.rollGhost(luck: number, rng: Random)
+	local rarity = Odds.rollRarity(luck, rng)
+	local pool = ghostsByRarity[rarity]
+	return pool[rng:NextInteger(1, #pool)]
+end
+
+-- Returns a mutation name or nil. Rarest mutations are checked first.
+function Odds.rollMutation(rng: Random): string?
+	for index = #Config.Mutations, 1, -1 do
+		local mutation = Config.Mutations[index]
+		if rng:NextNumber() < mutation.Chance then
+			return mutation.Name
+		end
+	end
+	return nil
+end
+
+return Odds
+]]></string>
+        </Properties>
+      </Item>
+    </Item>
+  </Item>
+  <Item class="ServerScriptService" referent="9">
+    <Properties>
+      <string name="Name">ServerScriptService</string>
+    </Properties>
+    <Item class="Folder" referent="10">
+      <Properties>
+        <string name="Name">Server</string>
+      </Properties>
+      <Item class="ModuleScript" referent="11">
+        <Properties>
+          <string name="Name">DataService</string>
+          <string name="Source"><![CDATA[-- Player data persistence with a lightweight session lock, so a player who
+-- hops servers quickly never loads stale data or gets rolled back.
+
+local DataStoreService = game:GetService("DataStoreService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+
+local Config = require(ReplicatedStorage.Shared.Config)
+local Loop = require(script.Parent.Loop)
+
+local STORE_NAME = "GhostHotel_v1"
+local AUTOSAVE_INTERVAL = 90
+local LOAD_ATTEMPTS = 5
+local LOAD_RETRY_DELAY = 6
+local STALE_SESSION_SECONDS = 10 * 60
+local MAX_PURCHASE_HISTORY = 100
+
+local DEFAULT_DATA = {
+	Cash = Config.StartingCash,
+	Rebirths = 0,
+	Builds = 0,
+	UnlockedRooms = Config.StartRooms,
+	Rooms = {}, -- ["<room>"] = { Id = ghostId, Mutation = name? }
+	Backpack = {}, -- { { Id = ghostId, Mutation = name? } }
+	VacuumLevel = 1,
+	BackpackLevel = 1,
+	Stored = 0, -- cash waiting in the register
+	TotalEarned = 0,
+	Caught = 0,
+	LastOnline = 0,
+	Purchases = {}, -- recent developer product PurchaseIds (idempotency)
+}
+
+type Profile = {
+	Data: any,
+	Key: string,
+	CanSave: boolean,
+	Releasing: boolean,
+}
+
+local DataService = {}
+
+local profiles: { [Player]: Profile } = {}
+
+local store: DataStore? = nil
+do
+	local ok, result = pcall(function()
+		return DataStoreService:GetDataStore(STORE_NAME)
+	end)
+	if ok then
+		store = result
+	else
+		warn("[DataService] DataStores unavailable:", result)
+	end
+end
+
+local function deepCopy(value: any): any
+	if type(value) ~= "table" then
+		return value
+	end
+	local copy = {}
+	for key, inner in value do
+		copy[key] = deepCopy(inner)
+	end
+	return copy
+end
+
+-- Adds keys that were introduced after the player's data was first saved.
+local function reconcile(data: any): any
+	for key, default in DEFAULT_DATA do
+		if data[key] == nil then
+			data[key] = deepCopy(default)
+		end
+	end
+	return data
+end
+
+local function keyFor(player: Player): string
+	return "player_" .. player.UserId
+end
+
+local function studioFallback(player: Player): any
+	warn(
+		"[DataService] Using temporary data for "
+			.. player.Name
+			.. " (enable 'Studio Access to API Services' to test saving)."
+	)
+	local data = deepCopy(DEFAULT_DATA)
+	profiles[player] = { Data = data, Key = keyFor(player), CanSave = false, Releasing = false }
+	return data
+end
+
+-- Loads (and session-locks) the player's data. Yields. Returns nil when the
+-- data could not be loaded safely; the caller should kick the player.
+function DataService.load(player: Player): any?
+	if not store then
+		return if RunService:IsStudio() then studioFallback(player) else nil
+	end
+
+	local key = keyFor(player)
+	for attempt = 1, LOAD_ATTEMPTS do
+		local locked = false
+		local loaded = nil
+		local ok, err = pcall(function()
+			(store :: DataStore):UpdateAsync(key, function(stored)
+				locked = false
+				stored = stored or {}
+				local session = stored.Session
+				local isForeign = session ~= nil and session.JobId ~= game.JobId
+				local isFresh = session ~= nil and os.time() - (session.Time or 0) < STALE_SESSION_SECONDS
+				-- On the last attempt we take the lock over: the other server
+				-- most likely crashed without releasing it.
+				if isForeign and isFresh and attempt < LOAD_ATTEMPTS then
+					locked = true
+					return nil
+				end
+				stored.Session = { JobId = game.JobId, Time = os.time() }
+				loaded = stored.Data
+				return stored
+			end)
+		end)
+
+		if ok and not locked then
+			local data = reconcile(loaded or deepCopy(DEFAULT_DATA))
+			profiles[player] = { Data = data, Key = key, CanSave = true, Releasing = false }
+			if not player.Parent then
+				-- Left while loading: give the session lock straight back.
+				task.spawn(DataService.release, player)
+				return nil
+			end
+			return data
+		end
+
+		if not player.Parent then
+			return nil
+		end
+
+		if not ok then
+			warn("[DataService] Load attempt", attempt, "failed for", player.Name, err)
+			if RunService:IsStudio() then
+				return studioFallback(player)
+			end
+		end
+		task.wait(LOAD_RETRY_DELAY)
+	end
+
+	return nil
+end
+
+function DataService.get(player: Player): any?
+	local profile = profiles[player]
+	return profile and profile.Data
+end
+
+local function write(player: Player, profile: Profile, release: boolean): boolean
+	if not profile.CanSave then
+		return true
+	end
+	profile.Data.LastOnline = os.time()
+
+	local lostSession = false
+	local ok, err = pcall(function()
+		(store :: DataStore):UpdateAsync(profile.Key, function(stored)
+			lostSession = false
+			stored = stored or {}
+			local session = stored.Session
+			if session and session.JobId ~= game.JobId then
+				lostSession = true
+				return nil
+			end
+			stored.Data = profile.Data
+			stored.Session = if release then nil else { JobId = game.JobId, Time = os.time() }
+			return stored
+		end)
+	end)
+
+	if lostSession then
+		-- Another server owns this player's data now; never overwrite it.
+		profile.CanSave = false
+		warn("[DataService] Session for", player.Name, "was taken over; stopped saving here.")
+		return false
+	end
+	if not ok then
+		warn("[DataService] Save failed for", player.Name, err)
+	end
+	return ok
+end
+
+function DataService.save(player: Player): boolean
+	local profile = profiles[player]
+	if not profile or profile.Releasing then
+		return false
+	end
+	return write(player, profile, false)
+end
+
+-- Final save + unlock. Call when the player leaves.
+function DataService.release(player: Player)
+	local profile = profiles[player]
+	if not profile or profile.Releasing then
+		return
+	end
+	profile.Releasing = true
+	for _ = 1, 3 do
+		if write(player, profile, true) then
+			break
+		end
+		task.wait(2)
+	end
+	profiles[player] = nil
+end
+
+-- Remembers a developer product purchase so it is never granted twice.
+function DataService.hasPurchase(player: Player, purchaseId: string): boolean
+	local data = DataService.get(player)
+	return data ~= nil and table.find(data.Purchases, purchaseId) ~= nil
+end
+
+function DataService.addPurchase(player: Player, purchaseId: string)
+	local data = DataService.get(player)
+	if not data then
+		return
+	end
+	table.insert(data.Purchases, purchaseId)
+	while #data.Purchases > MAX_PURCHASE_HISTORY do
+		table.remove(data.Purchases, 1)
+	end
+end
+
+function DataService.start()
+	Loop.every(AUTOSAVE_INTERVAL, "Autosave", function()
+		for player in profiles do
+			task.spawn(DataService.save, player)
+		end
+	end)
+
+	game:BindToClose(function()
+		local pending = 0
+		for player in profiles do
+			pending += 1
+			task.spawn(function()
+				DataService.release(player)
+				pending -= 1
+			end)
+		end
+		local deadline = os.clock() + 25
+		while (pending > 0 or next(profiles) ~= nil) and os.clock() < deadline do
+			task.wait(0.2)
+		end
+	end)
+end
+
+return DataService
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="12">
+        <Properties>
+          <string name="Name">EventService</string>
+          <string name="Source"><![CDATA[-- Witching Hour: a server-wide event with boosted rare ghost odds and
+-- more spawns. Happens on a timer and can be summoned with Robux.
+-- State is mirrored on ReplicatedStorage attributes for the client UI.
+
+local Lighting = game:GetService("Lighting")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+
+local Config = require(ReplicatedStorage.Shared.Config)
+local Loop = require(script.Parent.Loop)
+local Remotes = require(script.Parent.Remotes)
+
+local EventService = {}
+
+local endsAt = 0
+local active = false
+
+local NORMAL = {
+	ClockTime = 20.8,
+	Ambient = Color3.fromRGB(75, 65, 100),
+	OutdoorAmbient = Color3.fromRGB(95, 85, 130),
+	Tint = Color3.new(1, 1, 1),
+}
+local WITCHING = {
+	ClockTime = 0,
+	Ambient = Color3.fromRGB(110, 50, 120),
+	OutdoorAmbient = Color3.fromRGB(140, 60, 150),
+	Tint = Color3.fromRGB(255, 205, 235),
+}
+
+local function now(): number
+	return workspace:GetServerTimeNow()
+end
+
+local function applyLighting(preset)
+	local info = TweenInfo.new(3, Enum.EasingStyle.Sine)
+	TweenService:Create(Lighting, info, {
+		ClockTime = preset.ClockTime,
+		Ambient = preset.Ambient,
+		OutdoorAmbient = preset.OutdoorAmbient,
+	}):Play()
+	local grading = Lighting:FindFirstChild("Grading")
+	if grading then
+		TweenService:Create(grading, info, { TintColor = preset.Tint }):Play()
+	end
+end
+
+local function publish()
+	ReplicatedStorage:SetAttribute("WitchingHour", active)
+	ReplicatedStorage:SetAttribute("WitchingHourEndsAt", endsAt)
+end
+
+function EventService.isActive(): boolean
+	return active
+end
+
+function EventService.getLuck(): number
+	return if active then Config.WitchingHour.Luck else 1
+end
+
+function EventService.getSpawnRate(): number
+	return if active then Config.WitchingHour.SpawnRate else 1
+end
+
+-- Starts the event or extends it when it is already running.
+function EventService.start(duration: number, summonedBy: Player?)
+	local wasActive = active
+	endsAt = math.max(endsAt, now()) + duration
+	active = true
+	publish()
+	if not wasActive then
+		applyLighting(WITCHING)
+	end
+	if summonedBy then
+		Remotes.notifyAll("🌕 " .. summonedBy.DisplayName .. " summoned the WITCHING HOUR! Rare ghosts x3!", "event")
+	elseif not wasActive then
+		Remotes.notifyAll("🌕 The WITCHING HOUR has begun! Rare ghosts x3!", "event")
+	end
+end
+
+function EventService.run()
+	publish()
+	local nextNatural = now() + Config.WitchingHour.Every
+	Loop.every(1, "WitchingHour", function()
+		local time = now()
+		if active and time >= endsAt then
+			active = false
+			publish()
+			applyLighting(NORMAL)
+			Remotes.notifyAll("☀️ The Witching Hour is over.", "info")
+			nextNatural = math.max(nextNatural, time + Config.WitchingHour.Every / 2)
+		elseif not active and time >= nextNatural then
+			EventService.start(Config.WitchingHour.Duration)
+			nextNatural = time + Config.WitchingHour.Every
+		end
+	end)
+end
+
+return EventService
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="13">
+        <Properties>
+          <string name="Name">GhostService</string>
+          <string name="Source"><![CDATA[-- Ghost hunting: ghosts spawn and float around the graveyard, players hold
+-- the Ghost Vacuum to suck them in. Rarer ghosts take longer to catch and
+-- several hunters can fight over the same ghost — first to 100% wins.
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage.Shared
+local Config = require(Shared.Config)
+local GhostFactory = require(Shared.GhostFactory)
+local Odds = require(Shared.Odds)
+
+local EventService = require(script.Parent.EventService)
+local HotelService = require(script.Parent.HotelService)
+local Loop = require(script.Parent.Loop)
+local MapBuilder = require(script.Parent.MapBuilder)
+local Remotes = require(script.Parent.Remotes)
+
+type Ghost = {
+	Model: Model,
+	Root: BasePart,
+	Attachment: Attachment,
+	Align: AlignPosition,
+	Orient: AlignOrientation,
+	Id: string,
+	Mutation: string?,
+	Rarity: number,
+	Target: Vector3,
+	NextWander: number,
+	SpawnedAt: number,
+	Phase: number,
+	Progress: { [Player]: number },
+	PulledBy: Player?,
+	Fill: Frame?,
+	Bar: Frame?,
+	Captured: boolean,
+}
+
+type Hunter = {
+	Tool: Tool,
+	Beam: Beam,
+	Active: boolean,
+	Target: Ghost?,
+	LastFullNotice: number,
+}
+
+local GhostService = {}
+
+local TICK = 0.1
+local FLOAT_HEIGHT = 3
+
+local ghosts: { Ghost } = {}
+local hunters: { [Player]: Hunter } = {}
+local rng = Random.new()
+local ghostFolder: Folder
+
+--------------------------------------------------------------------------
+-- Spawning
+--------------------------------------------------------------------------
+local function randomGraveyardPoint(): Vector3
+	local min, max = MapBuilder.GraveyardMin, MapBuilder.GraveyardMax
+	return Vector3.new(rng:NextNumber(min.X + 4, max.X - 4), 0, rng:NextNumber(min.Z + 4, max.Z - 4))
+end
+
+local function floatHeight(ghost: Ghost): number
+	return FLOAT_HEIGHT + ghost.Root.Size.Y / 2
+end
+
+local function pickWanderTarget(ghost: Ghost)
+	local min, max = MapBuilder.GraveyardMin, MapBuilder.GraveyardMax
+	local current = ghost.Root.Position
+	local offset = Vector3.new(rng:NextNumber(-35, 35), 0, rng:NextNumber(-20, 20))
+	local target = Vector3.new(
+		math.clamp(current.X + offset.X, min.X + 3, max.X - 3),
+		floatHeight(ghost) + rng:NextNumber(0, 2.5),
+		math.clamp(current.Z + offset.Z, min.Z + 3, max.Z - 3)
+	)
+	ghost.Target = target
+	ghost.NextWander = os.clock() + rng:NextNumber(3, 7)
+end
+
+local function spawnGhost()
+	local definition = Odds.rollGhost(EventService.getLuck(), rng)
+	local mutation = Odds.rollMutation(rng)
+	local model = GhostFactory.build(definition.Id, mutation)
+	local root = model.PrimaryPart :: BasePart
+
+	local point = randomGraveyardPoint()
+	local start = Vector3.new(point.X, FLOAT_HEIGHT + root.Size.Y / 2, point.Z)
+	model:PivotTo(CFrame.new(start) * CFrame.Angles(0, rng:NextNumber(0, math.pi * 2), 0))
+
+	local attachment = Instance.new("Attachment")
+	attachment.Name = "GhostAttachment"
+	attachment.Parent = root
+
+	local align = Instance.new("AlignPosition")
+	align.Mode = Enum.PositionAlignmentMode.OneAttachment
+	align.Attachment0 = attachment
+	align.Position = start
+	align.MaxForce = math.huge
+	align.MaxVelocity = Config.Rarities[definition.Rarity].Speed
+	align.Responsiveness = 25
+	align.Parent = root
+
+	local orient = Instance.new("AlignOrientation")
+	orient.Mode = Enum.OrientationAlignmentMode.OneAttachment
+	orient.Attachment0 = attachment
+	orient.CFrame = root.CFrame.Rotation
+	orient.MaxTorque = math.huge
+	orient.Responsiveness = 12
+	orient.Parent = root
+
+	root.Anchored = false
+	model.Parent = ghostFolder
+	pcall(function()
+		root:SetNetworkOwner(nil)
+	end)
+
+	local info = root:FindFirstChild("Info")
+	local bar = info and info:FindFirstChild("Progress")
+
+	local ghost: Ghost = {
+		Model = model,
+		Root = root,
+		Attachment = attachment,
+		Align = align,
+		Orient = orient,
+		Id = definition.Id,
+		Mutation = mutation,
+		Rarity = definition.Rarity,
+		Target = start,
+		NextWander = 0,
+		SpawnedAt = os.clock(),
+		Phase = rng:NextNumber(0, math.pi * 2),
+		Progress = {},
+		PulledBy = nil,
+		Bar = bar,
+		Fill = bar and bar:FindFirstChild("Fill"),
+		Captured = false,
+	}
+	pickWanderTarget(ghost)
+	table.insert(ghosts, ghost)
+
+	if definition.Rarity >= Config.AnnounceFromRarity then
+		local rarity = Config.Rarities[definition.Rarity]
+		local prefix = if mutation then string.upper(mutation) .. " " else ""
+		Remotes.notifyAll(
+			string.format(
+				"👻 A %s%s %s appeared in the graveyard!",
+				prefix,
+				string.upper(rarity.Name),
+				definition.Name
+			),
+			"event"
+		)
+	end
+end
+
+local function removeGhost(ghost: Ghost)
+	ghost.Captured = true
+	local index = table.find(ghosts, ghost)
+	if index then
+		table.remove(ghosts, index)
+	end
+	for _, hunter in hunters do
+		if hunter.Target == ghost then
+			hunter.Target = nil
+			hunter.Beam.Attachment1 = nil
+			hunter.Beam.Enabled = false
+		end
+	end
+	ghost.Model:Destroy()
+end
+
+--------------------------------------------------------------------------
+-- The vacuum tool
+--------------------------------------------------------------------------
+local function weldTo(handle: BasePart, part: BasePart, offset: CFrame)
+	part.CFrame = handle.CFrame * offset
+	part.Anchored = false
+	part.CanCollide = false
+	part.Massless = true
+	local weld = Instance.new("WeldConstraint")
+	weld.Part0 = handle
+	weld.Part1 = part
+	weld.Parent = part
+end
+
+local function createVacuum(): (Tool, Beam)
+	local tool = Instance.new("Tool")
+	tool.Name = "Ghost Vacuum"
+	tool.ToolTip = "Hold to suck up ghosts!"
+	tool.CanBeDropped = false
+	tool.RequiresHandle = true
+	-- Forward is -Z; hold the vacuum near its back end.
+	tool.GripPos = Vector3.new(0, 0, 1)
+
+	local handle = Instance.new("Part")
+	handle.Name = "Handle"
+	handle.Size = Vector3.new(0.9, 0.9, 3.4)
+	handle.Color = Color3.fromRGB(60, 60, 75)
+	handle.Material = Enum.Material.Metal
+	handle.CanCollide = false
+	handle.Parent = tool
+
+	local tank = Instance.new("Part")
+	tank.Name = "Tank"
+	tank.Shape = Enum.PartType.Cylinder
+	tank.Size = Vector3.new(2, 1.2, 1.2)
+	tank.Color = Color3.fromRGB(120, 255, 200)
+	tank.Material = Enum.Material.Neon
+	tank.Transparency = 0.2
+	weldTo(handle, tank, CFrame.new(0, 0.9, 0.5) * CFrame.Angles(0, math.pi / 2, 0))
+	tank.Parent = tool
+
+	local nozzle = Instance.new("Part")
+	nozzle.Name = "Nozzle"
+	nozzle.Shape = Enum.PartType.Cylinder
+	nozzle.Size = Vector3.new(0.4, 1.4, 1.4)
+	nozzle.Color = Color3.fromRGB(170, 90, 255)
+	nozzle.Material = Enum.Material.Neon
+	weldTo(handle, nozzle, CFrame.new(0, 0, -1.8) * CFrame.Angles(0, math.pi / 2, 0))
+	nozzle.Parent = tool
+
+	local tip = Instance.new("Attachment")
+	tip.Name = "Tip"
+	tip.Position = Vector3.new(0, 0, -2)
+	tip.Parent = handle
+
+	local beam = Instance.new("Beam")
+	beam.Name = "VacuumBeam"
+	beam.Attachment0 = tip
+	beam.Color = ColorSequence.new(Color3.fromRGB(120, 255, 220), Color3.fromRGB(190, 110, 255))
+	beam.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.1),
+		NumberSequenceKeypoint.new(1, 0.55),
+	})
+	beam.Width0 = 0.8
+	beam.Width1 = 3
+	beam.FaceCamera = true
+	beam.LightEmission = 1
+	beam.Segments = 12
+	beam.Enabled = false
+	beam.Parent = handle
+
+	return tool, beam
+end
+
+local function giveVacuum(player: Player)
+	local backpack = player:FindFirstChildOfClass("Backpack")
+	if not backpack then
+		return
+	end
+	local tool, beam = createVacuum()
+	local hunter: Hunter = {
+		Tool = tool,
+		Beam = beam,
+		Active = false,
+		Target = nil,
+		LastFullNotice = 0,
+	}
+	tool.Activated:Connect(function()
+		hunter.Active = true
+	end)
+	tool.Deactivated:Connect(function()
+		hunter.Active = false
+	end)
+	tool.Unequipped:Connect(function()
+		hunter.Active = false
+	end)
+	tool.Parent = backpack
+	hunters[player] = hunter
+
+	-- Equip it right away so new players immediately know what to do.
+	local character = player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if humanoid then
+		humanoid:EquipTool(tool)
+	end
+end
+
+--------------------------------------------------------------------------
+-- Simulation
+--------------------------------------------------------------------------
+local function findTarget(root: BasePart): Ghost?
+	local best, bestScore = nil, math.huge
+	for _, ghost in ghosts do
+		if not ghost.Captured then
+			local offset = ghost.Root.Position - root.Position
+			local distance = offset.Magnitude
+			if distance <= Config.VacuumRange and distance > 0 then
+				local facing = root.CFrame.LookVector:Dot(offset.Unit)
+				local score = distance * (1.6 - facing)
+				if score < bestScore then
+					best, bestScore = ghost, score
+				end
+			end
+		end
+	end
+	return best
+end
+
+local function capture(ghost: Ghost, player: Player)
+	if not HotelService.addToBackpack(player, ghost.Id, ghost.Mutation) then
+		ghost.Progress[player] = 0.99
+		return
+	end
+	local definition = Config.GhostsById[ghost.Id]
+	local rarity = Config.Rarities[ghost.Rarity]
+	local mutationText = if ghost.Mutation then ghost.Mutation .. " " else ""
+	Remotes.notify(
+		player,
+		string.format("👻 Caught %s%s! (%s)", mutationText, definition.Name, rarity.Name),
+		if ghost.Rarity >= 4 then "rare" else "success"
+	)
+	if ghost.Rarity >= Config.AnnounceFromRarity then
+		Remotes.notifyAll(
+			string.format(
+				"🎉 %s caught a %s%s %s!",
+				player.DisplayName,
+				mutationText,
+				string.upper(rarity.Name),
+				definition.Name
+			),
+			"event"
+		)
+	end
+	Remotes.Effect:FireAllClients("capture", ghost.Root.Position, ghost.Rarity)
+	removeGhost(ghost)
+end
+
+local function stepHunters(dt: number)
+	for player, hunter in hunters do
+		local character = player.Character
+		local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
+		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+		local equipped = hunter.Tool.Parent == character
+		local alive = humanoid ~= nil and humanoid.Health > 0
+
+		local target: Ghost? = nil
+		if hunter.Active and equipped and alive and root then
+			if HotelService.isBackpackFull(player) then
+				if os.clock() - hunter.LastFullNotice > 6 then
+					hunter.LastFullNotice = os.clock()
+					Remotes.notify(player, "🎒 Backpack full! Bring your ghosts to your hotel.", "error")
+				end
+			else
+				target = hunter.Target
+				local valid = target ~= nil
+					and not target.Captured
+					and (target.Root.Position - root.Position).Magnitude <= Config.VacuumRange * 1.25
+				if not valid then
+					target = findTarget(root)
+				end
+			end
+		end
+
+		hunter.Target = target
+		if target and root then
+			target.PulledBy = player
+			local rarity = Config.Rarities[target.Rarity]
+			local gain = dt * HotelService.getVacuumPower(player) / rarity.CaptureTime
+			target.Progress[player] = (target.Progress[player] or 0) + gain
+			hunter.Beam.Attachment1 = target.Attachment
+			hunter.Beam.Enabled = true
+			if target.Progress[player] >= 1 then
+				capture(target, player)
+			end
+		elseif hunter.Beam.Enabled then
+			hunter.Beam.Enabled = false
+			hunter.Beam.Attachment1 = nil
+		end
+	end
+end
+
+local function stepGhosts(dt: number)
+	local now = os.clock()
+	for index = #ghosts, 1, -1 do
+		local ghost = ghosts[index]
+		local root = ghost.Root
+		if not root.Parent then
+			table.remove(ghosts, index)
+			continue
+		end
+
+		-- Decay progress from hunters who stopped vacuuming this ghost.
+		local best = 0
+		for player, progress in ghost.Progress do
+			local hunter = hunters[player]
+			if not hunter or hunter.Target ~= ghost then
+				progress -= Config.ProgressDecay * dt
+				ghost.Progress[player] = if progress > 0 then progress else nil
+			end
+			best = math.max(best, ghost.Progress[player] or 0)
+		end
+		if ghost.Bar and ghost.Fill then
+			ghost.Bar.Visible = best > 0
+			ghost.Fill.Size = UDim2.fromScale(math.clamp(best, 0, 1), 1)
+		end
+
+		local puller = ghost.PulledBy
+		local pullerHunter = puller and hunters[puller]
+		local pullerRoot = puller
+			and puller.Character
+			and puller.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
+		local position = root.Position
+
+		local toHunter = if pullerRoot then pullerRoot.Position - position else Vector3.zero
+		if pullerHunter and pullerHunter.Target == ghost and pullerRoot and toHunter.Magnitude > 0.1 then
+			-- Being vacuumed: drift toward the hunter and wobble.
+			local stop = pullerRoot.Position - toHunter.Unit * 6
+			ghost.Align.Position = Vector3.new(stop.X, pullerRoot.Position.Y + 2, stop.Z)
+			ghost.Align.MaxVelocity = Config.VacuumPullSpeed
+			local shake = CFrame.Angles(0, 0, math.sin(now * 30) * 0.25)
+			ghost.Orient.CFrame = CFrame.lookAt(
+				position,
+				Vector3.new(pullerRoot.Position.X, position.Y, pullerRoot.Position.Z)
+			).Rotation * shake
+		else
+			ghost.PulledBy = nil
+			if now - ghost.SpawnedAt > Config.GhostLifetime and next(ghost.Progress) == nil then
+				Remotes.Effect:FireAllClients("fade", position, ghost.Rarity)
+				removeGhost(ghost)
+				continue
+			end
+			local flat = Vector3.new(ghost.Target.X - position.X, 0, ghost.Target.Z - position.Z)
+			if flat.Magnitude < 3 or now > ghost.NextWander then
+				pickWanderTarget(ghost)
+				flat = Vector3.new(ghost.Target.X - position.X, 0, ghost.Target.Z - position.Z)
+			end
+			local bob = math.sin(now * 2 + ghost.Phase) * 0.8
+			ghost.Align.Position = ghost.Target + Vector3.new(0, bob, 0)
+			ghost.Align.MaxVelocity = Config.Rarities[ghost.Rarity].Speed
+			if flat.Magnitude > 0.5 then
+				ghost.Orient.CFrame = CFrame.lookAt(Vector3.zero, flat.Unit)
+			end
+		end
+	end
+end
+
+--------------------------------------------------------------------------
+-- Startup
+--------------------------------------------------------------------------
+function GhostService.onCharacterAdded(player: Player, character: Model)
+	local old = hunters[player]
+	if old then
+		old.Tool:Destroy()
+		hunters[player] = nil
+	end
+	character:WaitForChild("Humanoid", 10)
+	if player.Character == character then
+		giveVacuum(player)
+	end
+end
+
+function GhostService.onPlayerRemoving(player: Player)
+	hunters[player] = nil
+	for _, ghost in ghosts do
+		ghost.Progress[player] = nil
+		if ghost.PulledBy == player then
+			ghost.PulledBy = nil
+		end
+	end
+end
+
+function GhostService.start()
+	ghostFolder = Instance.new("Folder")
+	ghostFolder.Name = "Ghosts"
+	ghostFolder.Parent = workspace
+
+	Loop.every(TICK, "Hunters", stepHunters)
+	Loop.every(TICK, "Ghosts", stepGhosts)
+
+	local spawnTimer = 0
+	Loop.every(TICK, "Spawner", function(dt)
+		spawnTimer += dt
+		local interval = Config.SpawnInterval / EventService.getSpawnRate()
+		local cap = Config.MaxGhosts * (if EventService.isActive() then 1.5 else 1)
+		if spawnTimer >= interval then
+			spawnTimer = 0
+			if #ghosts < cap and #Players:GetPlayers() > 0 then
+				spawnGhost()
+			end
+		end
+	end)
+end
+
+return GhostService
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="14">
+        <Properties>
+          <string name="Name">HotelService</string>
+          <string name="Source"><![CDATA[-- The tycoon itself: hotel ownership, rooms, income, the cash register,
+-- build buttons, upgrades, the fusion cauldron, rebirths and player stats.
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+
+local Shared = ReplicatedStorage.Shared
+local Config = require(Shared.Config)
+local Format = require(Shared.Format)
+local Formulas = require(Shared.Formulas)
+local GhostFactory = require(Shared.GhostFactory)
+
+local DataService = require(script.Parent.DataService)
+local Loop = require(script.Parent.Loop)
+local MapBuilder = require(script.Parent.MapBuilder)
+local PassCache = require(script.Parent.PassCache)
+local Remotes = require(script.Parent.Remotes)
+
+type Plot = MapBuilder.Plot
+
+type State = {
+	Data: any,
+	Plot: Plot,
+	RoomModels: { [number]: Model },
+	Income: number,
+	Multiplier: number,
+	LastCollect: number,
+	LastBuild: number,
+	LastFullWarning: number,
+	LastTeleport: number,
+}
+
+local HotelService = {}
+
+local plots: { Plot } = {}
+local states: { [Player]: State } = {}
+
+local ROOM_GHOST_MAX_SIZE = 4.6
+local COLOR_OPEN = Color3.fromRGB(90, 255, 220)
+local COLOR_NEXT = Color3.fromRGB(255, 255, 255)
+local COLOR_LOCKED = Color3.fromRGB(70, 70, 80)
+local COLOR_VIP = Color3.fromRGB(255, 200, 60)
+
+--------------------------------------------------------------------------
+-- Helpers
+--------------------------------------------------------------------------
+local function playerFromHit(hit: BasePart): Player?
+	local character = hit:FindFirstAncestorOfClass("Model")
+	return character and Players:GetPlayerFromCharacter(character)
+end
+
+local function makePrompt(
+	parent: Instance,
+	action: string,
+	object: string,
+	hold: number,
+	owner: Player?
+): ProximityPrompt
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.ActionText = action
+	prompt.ObjectText = object
+	prompt.HoldDuration = hold
+	prompt.MaxActivationDistance = 10
+	prompt.RequiresLineOfSight = false
+	prompt.Style = Enum.ProximityPromptStyle.Default
+	-- The client hides owner-only prompts from everybody else.
+	prompt:SetAttribute("OwnerOnly", true)
+	prompt:SetAttribute("OwnerUserId", if owner then owner.UserId else 0)
+	prompt.Parent = parent
+	return prompt
+end
+
+local function clearPrompts(parent: Instance)
+	for _, child in parent:GetChildren() do
+		if child:IsA("ProximityPrompt") then
+			child:Destroy()
+		end
+	end
+end
+
+local function isOwner(player: Player, plot: Plot): boolean
+	return plot.Owner == player and states[player] ~= nil
+end
+
+local function effect(player: Player?, kind: string, position: Vector3)
+	if player then
+		Remotes.Effect:FireClient(player, kind, position)
+	else
+		Remotes.Effect:FireAllClients(kind, position)
+	end
+end
+
+--------------------------------------------------------------------------
+-- Stats
+--------------------------------------------------------------------------
+function HotelService.getStats(player: Player): Formulas.Stats
+	local state = states[player]
+	return {
+		Rebirths = if state then state.Data.Rebirths else 0,
+		Builds = if state then state.Data.Builds else 0,
+		DoubleCash = PassCache.owns(player, "DoubleCash"),
+		VIP = PassCache.owns(player, "VIP"),
+		Premium = PassCache.isPremium(player),
+	}
+end
+
+function HotelService.getIncomePerSecond(player: Player): number
+	local state = states[player]
+	return if state then state.Income else 0
+end
+
+function HotelService.getVacuumPower(player: Player): number
+	local state = states[player]
+	if not state then
+		return 1
+	end
+	return Formulas.vacuumPower(state.Data.VacuumLevel, state.Data.Rebirths, PassCache.owns(player, "MegaVacuum"))
+end
+
+function HotelService.getBackpackCapacity(player: Player): number
+	local state = states[player]
+	if not state then
+		return 0
+	end
+	return Formulas.backpackCapacity(state.Data.BackpackLevel, PassCache.owns(player, "BigBackpack"))
+end
+
+function HotelService.isBackpackFull(player: Player): boolean
+	local state = states[player]
+	return state == nil or #state.Data.Backpack >= HotelService.getBackpackCapacity(player)
+end
+
+function HotelService.getPlot(player: Player): Plot?
+	local state = states[player]
+	return state and state.Plot
+end
+
+function HotelService.isLoaded(player: Player): boolean
+	return states[player] ~= nil
+end
+
+local function backpackString(data): string
+	local parts = {}
+	for _, ghost in data.Backpack do
+		table.insert(parts, ghost.Id .. ":" .. (ghost.Mutation or ""))
+	end
+	return table.concat(parts, ",")
+end
+
+local function updateLeaderstats(player: Player, data)
+	local leaderstats = player:FindFirstChild("leaderstats")
+	if not leaderstats then
+		return
+	end
+	leaderstats.Cash.Value = Format.money(data.Cash)
+	leaderstats.Ghosts.Value = data.Caught
+	leaderstats.Rebirths.Value = data.Rebirths
+end
+
+local function updateCashAttributes(player: Player, data)
+	player:SetAttribute("Cash", data.Cash)
+	player:SetAttribute("Stored", math.floor(data.Stored))
+	updateLeaderstats(player, data)
+end
+
+local function applyWalkSpeed(player: Player)
+	local character = player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if humanoid then
+		humanoid.WalkSpeed = if PassCache.owns(player, "SpeedCoil") then Config.SpeedCoilWalkSpeed else Config.WalkSpeed
+	end
+end
+
+--------------------------------------------------------------------------
+-- Money
+--------------------------------------------------------------------------
+function HotelService.addCash(player: Player, amount: number)
+	local state = states[player]
+	if not state or amount <= 0 then
+		return
+	end
+	state.Data.Cash += amount
+	updateCashAttributes(player, state.Data)
+end
+
+function HotelService.trySpend(player: Player, amount: number): boolean
+	local state = states[player]
+	if not state then
+		return false
+	end
+	if state.Data.Cash < amount then
+		Remotes.notify(
+			player,
+			"Not enough cash! You need " .. Format.money(amount - state.Data.Cash) .. " more.",
+			"error"
+		)
+		return false
+	end
+	state.Data.Cash -= amount
+	updateCashAttributes(player, state.Data)
+	return true
+end
+
+--------------------------------------------------------------------------
+-- Plot visuals
+--------------------------------------------------------------------------
+local function updateStations(player: Player)
+	local state = states[player]
+	if not state then
+		return
+	end
+	local data, plot = state.Data, state.Plot
+
+	for kind, upgrade in Config.Upgrades do
+		local level = if kind == "Vacuum" then data.VacuumLevel else data.BackpackLevel
+		local cost = Formulas.upgradeCost(kind, level)
+		local stat = if kind == "Vacuum"
+			then "Power x" .. string.format("%.2f", HotelService.getVacuumPower(player))
+			else "Holds " .. HotelService.getBackpackCapacity(player) .. " ghosts"
+		local nextText = if cost then "Upgrade: " .. Format.money(cost) else "MAX LEVEL"
+		plot.StationLabels[kind].Text = string.format(
+			'%s %s <font color="#9fe0ff">Lv %d</font>\n<font size="18">%s • %s</font>',
+			upgrade.Icon,
+			upgrade.Name,
+			level,
+			stat,
+			nextText
+		)
+		local prompt = plot.Stations[kind]:FindFirstChildOfClass("ProximityPrompt")
+		if prompt then
+			prompt.ObjectText = if cost then Format.money(cost) else "MAX"
+			-- Visibility is decided on the client (owner only), see WorldEffects.
+			prompt:SetAttribute("ServerEnabled", cost ~= nil)
+		end
+	end
+
+	plot.StationLabels.Cauldron.Text = '🧪 Fusion Cauldron\n<font size="18">3 identical ghosts → 1 mutated</font>'
+
+	local nextBuild = Config.HotelBuilds[data.Builds + 1]
+	plot.BuildLabel.Text = if nextBuild
+		then string.format(
+			'🔨 Build: %s\n<font color="#7dff9b">%s</font> <font size="18">(+%d%% income)</font>',
+			nextBuild.Name,
+			Format.money(nextBuild.Price),
+			math.floor(nextBuild.IncomeBonus * 100 + 0.5)
+		)
+		else "🏆 Hotel complete!"
+	plot.BuildPad.Transparency = if nextBuild then 0 else 0.7
+end
+
+local function updateRegister(player: Player)
+	local state = states[player]
+	if not state then
+		return
+	end
+	state.Plot.RegisterLabel.Text = string.format(
+		'💰 %s\n<font size="18">Step here to collect</font>',
+		Format.money(math.floor(state.Data.Stored))
+	)
+end
+
+local function roomGhostCFrame(plot: Plot, room: number, ghostId: string, scale: number): CFrame
+	local size = GhostFactory.getSize(ghostId, scale)
+	return plot.Rooms[room].GhostCFrame * CFrame.new(0, 1.6 + size / 2, 0)
+end
+
+local function renderRoom(player: Player, room: number)
+	local state = states[player]
+	if not state then
+		return
+	end
+	local data, plot = state.Data, state.Plot
+	local info = plot.Rooms[room]
+
+	local old = state.RoomModels[room]
+	if old then
+		old:Destroy()
+		state.RoomModels[room] = nil
+	end
+	clearPrompts(info.Base)
+
+	local entry = data.Rooms[tostring(room)]
+	local vip = PassCache.owns(player, "VIP")
+	local isVipRoom = Formulas.isVipRoom(room)
+	local open = Formulas.isRoomOpen(room, data.UnlockedRooms, vip)
+
+	if entry and Config.GhostsById[entry.Id] then
+		local scale = math.min(1, ROOM_GHOST_MAX_SIZE / GhostFactory.getSize(entry.Id))
+		local model = GhostFactory.build(entry.Id, entry.Mutation, { Scale = scale })
+		model:PivotTo(roomGhostCFrame(plot, room, entry.Id, scale))
+		model:SetAttribute("OwnerUserId", player.UserId)
+		model:SetAttribute("Room", room)
+		model:AddTag("RoomGhost")
+
+		local value = Formulas.releaseValue(entry.Id, entry.Mutation, state.Multiplier)
+		local prompt = makePrompt(model.PrimaryPart :: BasePart, "Release", "+" .. Format.money(value), 0.8, player)
+		prompt.Triggered:Connect(function(who)
+			if who == player then
+				HotelService.releaseGhost(player, room)
+			end
+		end)
+
+		model.Parent = plot.Model
+		state.RoomModels[room] = model
+		info.Ring.Color = Config.Rarities[Config.GhostsById[entry.Id].Rarity].Color
+		info.Label.Text = ""
+	elseif open then
+		info.Ring.Color = if isVipRoom then COLOR_VIP else COLOR_OPEN
+		info.Label.Text = if isVipRoom then "👑 VIP room\nEmpty" else "Empty room"
+	elseif isVipRoom then
+		info.Ring.Color = COLOR_VIP
+		info.Label.Text = '👑 VIP ROOM\n<font size="16">Get the VIP pass</font>'
+	elseif room == Formulas.nextLockedRoom(data.UnlockedRooms) then
+		local cost = Formulas.roomCost(data.UnlockedRooms) or 0
+		info.Ring.Color = COLOR_NEXT
+		info.Label.Text = "🔒 Unlock\n" .. Format.money(cost)
+		local prompt = makePrompt(info.Base, "Unlock Room", Format.money(cost), 0.3, player)
+		prompt.Triggered:Connect(function(who)
+			if who == player then
+				HotelService.unlockRoom(player)
+			end
+		end)
+	else
+		info.Ring.Color = COLOR_LOCKED
+		info.Label.Text = "🔒"
+	end
+end
+
+local function renderAllRooms(player: Player)
+	for room = 1, Formulas.TotalRooms do
+		renderRoom(player, room)
+	end
+end
+
+local function setBuildVisible(plot: Plot, key: string, visible: boolean, animate: boolean)
+	local model = plot.Builds[key]
+	if not model then
+		return
+	end
+	if not visible then
+		model.Parent = nil
+		return
+	end
+	if model.Parent == plot.Model then
+		return
+	end
+	model.Parent = plot.Model
+	if animate then
+		for _, descendant in model:GetDescendants() do
+			if descendant:IsA("BasePart") then
+				local target = descendant.CFrame
+				descendant.CFrame = target * CFrame.new(0, -4, 0)
+				TweenService:Create(descendant, TweenInfo.new(0.7, Enum.EasingStyle.Back), { CFrame = target }):Play()
+			end
+		end
+	end
+end
+
+local function renderBuilds(player: Player, animateLatest: boolean)
+	local state = states[player]
+	if not state then
+		return
+	end
+	for index, build in Config.HotelBuilds do
+		local owned = index <= state.Data.Builds
+		setBuildVisible(state.Plot, build.Key, owned, animateLatest and index == state.Data.Builds)
+	end
+end
+
+--------------------------------------------------------------------------
+-- Refresh: recompute derived stats and push them to the client
+--------------------------------------------------------------------------
+function HotelService.refresh(player: Player)
+	local state = states[player]
+	if not state then
+		return
+	end
+	local data = state.Data
+	state.Multiplier = Formulas.incomeMultiplier(HotelService.getStats(player))
+
+	local income = 0
+	for _, entry in data.Rooms do
+		income += Formulas.ghostIncome(entry.Id, entry.Mutation)
+	end
+	state.Income = income * state.Multiplier
+
+	player:SetAttribute("IncomePerSec", state.Income)
+	player:SetAttribute("Multiplier", state.Multiplier)
+	player:SetAttribute("Rebirths", data.Rebirths)
+	player:SetAttribute("Builds", data.Builds)
+	player:SetAttribute("Caught", data.Caught)
+	player:SetAttribute("VacuumLevel", data.VacuumLevel)
+	player:SetAttribute("BackpackLevel", data.BackpackLevel)
+	player:SetAttribute("VacuumPower", HotelService.getVacuumPower(player))
+	player:SetAttribute("BackpackCount", #data.Backpack)
+	player:SetAttribute("BackpackCapacity", HotelService.getBackpackCapacity(player))
+	player:SetAttribute("BackpackIds", backpackString(data))
+	updateCashAttributes(player, data)
+
+	-- Release prices depend on the multiplier, keep the prompts in sync.
+	for room, model in state.RoomModels do
+		local entry = data.Rooms[tostring(room)]
+		local prompt = model.PrimaryPart and model.PrimaryPart:FindFirstChildOfClass("ProximityPrompt")
+		if entry and prompt then
+			prompt.ObjectText = "+" .. Format.money(Formulas.releaseValue(entry.Id, entry.Mutation, state.Multiplier))
+		end
+	end
+	updateStations(player)
+	updateRegister(player)
+	applyWalkSpeed(player)
+
+	local stars = data.Builds
+	state.Plot.SignLabel.Text = player.DisplayName .. "'s Hotel"
+	state.Plot.StarsLabel.Text = string.rep("★", stars) .. string.rep("☆", #Config.HotelBuilds - stars)
+end
+
+--------------------------------------------------------------------------
+-- Gameplay actions
+--------------------------------------------------------------------------
+local function freeRooms(player: Player): { number }
+	local state = states[player]
+	local free = {}
+	if not state then
+		return free
+	end
+	local vip = PassCache.owns(player, "VIP")
+	local order = table.clone(Formulas.RoomOrder)
+	for room = 1, Formulas.TotalRooms do
+		if Formulas.isVipRoom(room) then
+			table.insert(order, room)
+		end
+	end
+	for _, room in order do
+		if Formulas.isRoomOpen(room, state.Data.UnlockedRooms, vip) and state.Data.Rooms[tostring(room)] == nil then
+			table.insert(free, room)
+		end
+	end
+	return free
+end
+
+-- Adds a freshly caught ghost to the player's backpack.
+function HotelService.addToBackpack(player: Player, ghostId: string, mutation: string?): boolean
+	local state = states[player]
+	if not state or HotelService.isBackpackFull(player) then
+		return false
+	end
+	table.insert(state.Data.Backpack, { Id = ghostId, Mutation = mutation })
+	state.Data.Caught += 1
+	HotelService.refresh(player)
+	return true
+end
+
+-- Moves ghosts from the backpack into free rooms.
+function HotelService.checkIn(player: Player)
+	local state = states[player]
+	if not state or #state.Data.Backpack == 0 then
+		return
+	end
+	local free = freeRooms(player)
+	local count = 0
+	while #state.Data.Backpack > 0 and #free > 0 do
+		local ghost = table.remove(state.Data.Backpack, 1)
+		local room = table.remove(free, 1) :: number
+		state.Data.Rooms[tostring(room)] = { Id = ghost.Id, Mutation = ghost.Mutation }
+		renderRoom(player, room)
+		count += 1
+	end
+	if count > 0 then
+		HotelService.refresh(player)
+		Remotes.notify(
+			player,
+			"🏨 Checked in " .. count .. " ghost" .. (if count > 1 then "s" else "") .. "!",
+			"success"
+		)
+		effect(player, "checkin", state.Plot.Register.Position)
+	end
+	if #state.Data.Backpack > 0 and os.clock() - state.LastFullWarning > 12 then
+		state.LastFullWarning = os.clock()
+		Remotes.notify(player, "Your hotel is full! Unlock rooms or release ghosts.", "error")
+	end
+end
+
+function HotelService.releaseGhost(player: Player, room: number)
+	local state = states[player]
+	if not state then
+		return
+	end
+	local entry = state.Data.Rooms[tostring(room)]
+	if not entry then
+		return
+	end
+	local value = Formulas.releaseValue(entry.Id, entry.Mutation, state.Multiplier)
+	state.Data.Rooms[tostring(room)] = nil
+	state.Data.Cash += value
+	renderRoom(player, room)
+	HotelService.refresh(player)
+	Remotes.notify(
+		player,
+		"👋 Released " .. Config.GhostsById[entry.Id].Name .. " for +" .. Format.money(value),
+		"success"
+	)
+	effect(player, "release", state.Plot.Rooms[room].Base.Position)
+end
+
+function HotelService.unlockRoom(player: Player)
+	local state = states[player]
+	if not state then
+		return
+	end
+	local cost = Formulas.roomCost(state.Data.UnlockedRooms)
+	if not cost or not HotelService.trySpend(player, cost) then
+		return
+	end
+	state.Data.UnlockedRooms += 1
+	renderAllRooms(player)
+	HotelService.refresh(player)
+	Remotes.notify(player, "🔓 New room unlocked!", "success")
+	effect(player, "build", state.Plot.Register.Position)
+	HotelService.checkIn(player)
+end
+
+function HotelService.upgrade(player: Player, kind: string)
+	local state = states[player]
+	if not state then
+		return
+	end
+	local field = if kind == "Vacuum" then "VacuumLevel" else "BackpackLevel"
+	local cost = Formulas.upgradeCost(kind, state.Data[field])
+	if not cost or not HotelService.trySpend(player, cost) then
+		return
+	end
+	state.Data[field] += 1
+	HotelService.refresh(player)
+	Remotes.notify(
+		player,
+		Config.Upgrades[kind].Icon .. " " .. kind .. " upgraded to level " .. state.Data[field] .. "!",
+		"success"
+	)
+	effect(player, "build", state.Plot.Stations[kind].Position)
+end
+
+function HotelService.buyNextBuild(player: Player)
+	local state = states[player]
+	if not state or os.clock() - state.LastBuild < 1 then
+		return
+	end
+	local build = Config.HotelBuilds[state.Data.Builds + 1]
+	if not build then
+		return
+	end
+	state.LastBuild = os.clock()
+	if not HotelService.trySpend(player, build.Price) then
+		return
+	end
+	state.Data.Builds += 1
+	renderBuilds(player, true)
+	HotelService.refresh(player)
+	Remotes.notify(
+		player,
+		string.format("🔨 Built %s! Income +%d%%", build.Name, math.floor(build.IncomeBonus * 100 + 0.5)),
+		"success"
+	)
+	effect(player, "build", state.Plot.BuildPad.Position)
+end
+
+function HotelService.fuse(player: Player)
+	local state = states[player]
+	if not state then
+		return
+	end
+	local groups: { [string]: { number } } = {}
+	for key, entry in state.Data.Rooms do
+		if Formulas.nextMutation(entry.Mutation) then
+			local groupKey = entry.Id .. "|" .. (entry.Mutation or "")
+			groups[groupKey] = groups[groupKey] or {}
+			table.insert(groups[groupKey], tonumber(key) :: number)
+		end
+	end
+
+	local bestRooms, bestIncome = nil, -1
+	for _, rooms in groups do
+		if #rooms >= Config.FuseCount then
+			local entry = state.Data.Rooms[tostring(rooms[1])]
+			local income = Formulas.ghostIncome(entry.Id, Formulas.nextMutation(entry.Mutation))
+			if income > bestIncome then
+				bestRooms, bestIncome = rooms, income
+			end
+		end
+	end
+
+	if not bestRooms then
+		Remotes.notify(
+			player,
+			"🧪 Put " .. Config.FuseCount .. " identical ghosts (same mutation) in your rooms to fuse!",
+			"error"
+		)
+		return
+	end
+
+	table.sort(bestRooms)
+	local first = state.Data.Rooms[tostring(bestRooms[1])]
+	local result = { Id = first.Id, Mutation = Formulas.nextMutation(first.Mutation) }
+	for index = 1, Config.FuseCount do
+		state.Data.Rooms[tostring(bestRooms[index])] = nil
+	end
+	state.Data.Rooms[tostring(bestRooms[1])] = result
+	for index = 1, Config.FuseCount do
+		renderRoom(player, bestRooms[index])
+	end
+	HotelService.refresh(player)
+	Remotes.notify(
+		player,
+		string.format("🧪 Fused into a %s %s!", string.upper(result.Mutation), Config.GhostsById[result.Id].Name),
+		"success"
+	)
+	effect(player, "fuse", state.Plot.Stations.Cauldron.Position)
+end
+
+function HotelService.collect(player: Player)
+	local state = states[player]
+	if not state or os.clock() - state.LastCollect < 0.5 then
+		return
+	end
+	local amount = math.floor(state.Data.Stored)
+	if amount < 1 then
+		return
+	end
+	state.LastCollect = os.clock()
+	state.Data.Stored -= amount
+	state.Data.Cash += amount
+	updateCashAttributes(player, state.Data)
+	updateRegister(player)
+	effect(player, "collect", state.Plot.Register.Position)
+end
+
+function HotelService.rebirth(player: Player)
+	local state = states[player]
+	if not state then
+		return
+	end
+	local data = state.Data
+	local cost = Formulas.rebirthCost(data.Rebirths)
+	if data.Cash < cost then
+		Remotes.notify(player, "You need " .. Format.money(cost) .. " to rebirth.", "error")
+		return
+	end
+	data.Rebirths += 1
+	data.Cash = Config.Rebirth.StartCash
+	data.Stored = 0
+	data.Builds = 0
+	data.UnlockedRooms = Config.StartRooms
+	data.Rooms = {}
+	data.Backpack = {}
+	data.VacuumLevel = 1
+	data.BackpackLevel = 1
+	renderBuilds(player, false)
+	renderAllRooms(player)
+	HotelService.refresh(player)
+	Remotes.notifyAll("♻️ " .. player.DisplayName .. " rebirthed! (Rebirth " .. data.Rebirths .. ")", "event")
+	effect(nil, "rebirth", state.Plot.Register.Position)
+	task.spawn(DataService.save, player)
+end
+
+function HotelService.teleportHome(player: Player)
+	local state = states[player]
+	local character = player.Character
+	if not state or not character or os.clock() - state.LastTeleport < Config.HomeTeleportCooldown then
+		return
+	end
+	state.LastTeleport = os.clock()
+	character:PivotTo(state.Plot.SpawnCFrame)
+end
+
+--------------------------------------------------------------------------
+-- Player lifecycle
+--------------------------------------------------------------------------
+function HotelService.assign(player: Player): Plot?
+	for _, plot in plots do
+		if plot.Owner == nil then
+			plot.Owner = player
+			return plot
+		end
+	end
+	return nil
+end
+
+function HotelService.setup(player: Player, plot: Plot, data)
+	local state: State = {
+		Data = data,
+		Plot = plot,
+		RoomModels = {},
+		Income = 0,
+		Multiplier = 1,
+		LastCollect = 0,
+		LastBuild = 0,
+		LastFullWarning = 0,
+		LastTeleport = 0,
+	}
+	states[player] = state
+	plot.Owner = player
+	plot.Model:SetAttribute("OwnerUserId", player.UserId)
+	for _, station in plot.Stations do
+		local prompt = station:FindFirstChildOfClass("ProximityPrompt")
+		if prompt then
+			prompt:SetAttribute("OwnerUserId", player.UserId)
+		end
+	end
+
+	local leaderstats = Instance.new("Folder")
+	leaderstats.Name = "leaderstats"
+	local cash = Instance.new("StringValue")
+	cash.Name = "Cash"
+	cash.Parent = leaderstats
+	local ghosts = Instance.new("IntValue")
+	ghosts.Name = "Ghosts"
+	ghosts.Parent = leaderstats
+	local rebirths = Instance.new("IntValue")
+	rebirths.Name = "Rebirths"
+	rebirths.Parent = leaderstats
+	leaderstats.Parent = player
+
+	-- Drop anything that no longer exists in the config.
+	for key, entry in data.Rooms do
+		if not Config.GhostsById[entry.Id] then
+			data.Rooms[key] = nil
+		end
+	end
+	for index = #data.Backpack, 1, -1 do
+		if not Config.GhostsById[data.Backpack[index].Id] then
+			table.remove(data.Backpack, index)
+		end
+	end
+
+	HotelService.refresh(player)
+	renderBuilds(player, false)
+	renderAllRooms(player)
+
+	-- Offline earnings
+	if data.LastOnline > 0 and state.Income > 0 then
+		local away = math.min(os.time() - data.LastOnline, Config.OfflineEarningsMaxSeconds)
+		local earned = math.floor(state.Income * math.max(away, 0) * Config.OfflineEarningsRate)
+		if earned > 0 then
+			data.Cash += earned
+			updateCashAttributes(player, data)
+			task.delay(3, function()
+				if player.Parent then
+					Remotes.notify(
+						player,
+						"🌙 Your ghosts earned " .. Format.money(earned) .. " while you were away!",
+						"success"
+					)
+				end
+			end)
+		end
+	end
+
+	player:SetAttribute("PlotIndex", plot.Index)
+	player:SetAttribute("Loaded", true)
+end
+
+function HotelService.cleanup(player: Player)
+	local state = states[player]
+	for _, plot in plots do
+		if plot.Owner == player then
+			plot.Owner = nil
+		end
+	end
+	if not state then
+		return
+	end
+	local plot = state.Plot
+	for _, model in state.RoomModels do
+		model:Destroy()
+	end
+	for room = 1, Formulas.TotalRooms do
+		local info = plot.Rooms[room]
+		clearPrompts(info.Base)
+		info.Ring.Color = COLOR_LOCKED
+		info.Label.Text = ""
+	end
+	for key in plot.Builds do
+		setBuildVisible(plot, key, false, false)
+	end
+	for key, label in plot.StationLabels do
+		label.Text = ""
+		local prompt = plot.Stations[key]:FindFirstChildOfClass("ProximityPrompt")
+		if prompt then
+			prompt:SetAttribute("OwnerUserId", 0)
+		end
+	end
+	plot.Model:SetAttribute("OwnerUserId", 0)
+	plot.SignLabel.Text = "Empty Hotel"
+	plot.StarsLabel.Text = ""
+	plot.RegisterLabel.Text = ""
+	plot.BuildLabel.Text = ""
+	states[player] = nil
+end
+
+function HotelService.onCharacterAdded(player: Player, character: Model)
+	local state = states[player]
+	if not state then
+		return
+	end
+	local root = character:WaitForChild("HumanoidRootPart", 10)
+	if root and states[player] == state then
+		task.defer(function()
+			character:PivotTo(state.Plot.SpawnCFrame)
+		end)
+	end
+	applyWalkSpeed(player)
+end
+
+--------------------------------------------------------------------------
+-- Startup
+--------------------------------------------------------------------------
+local function ownerTouch(part: BasePart, plotRef: Plot, callback: (Player) -> ())
+	part.Touched:Connect(function(hit)
+		local player = playerFromHit(hit)
+		if player and isOwner(player, plotRef) then
+			callback(player)
+		end
+	end)
+end
+
+function HotelService.init(builtPlots: { Plot })
+	plots = builtPlots
+	for _, plot in plots do
+		ownerTouch(plot.Register, plot, HotelService.collect)
+		ownerTouch(plot.BuildPad, plot, HotelService.buyNextBuild)
+
+		for kind in Config.Upgrades do
+			local prompt = makePrompt(plot.Stations[kind], "Upgrade " .. kind, "", 0.3, nil)
+			prompt.Triggered:Connect(function(player)
+				if isOwner(player, plot) then
+					HotelService.upgrade(player, kind)
+				end
+			end)
+		end
+		local fusePrompt = makePrompt(plot.Stations.Cauldron, "Fuse Ghosts", "3 → 1", 1, nil)
+		fusePrompt.Triggered:Connect(function(player)
+			if isOwner(player, plot) then
+				HotelService.fuse(player)
+			end
+		end)
+	end
+end
+
+function HotelService.start()
+	PassCache.Changed:Connect(function(player)
+		if states[player] then
+			renderAllRooms(player)
+			HotelService.refresh(player)
+			HotelService.checkIn(player)
+		end
+	end)
+
+	Remotes.Rebirth.OnServerEvent:Connect(HotelService.rebirth)
+	Remotes.TeleportHome.OnServerEvent:Connect(HotelService.teleportHome)
+
+	-- Income tick
+	Loop.every(1, "Income", function()
+		for player, state in states do
+			if state.Income > 0 then
+				state.Data.Stored += state.Income
+				state.Data.TotalEarned += state.Income
+				player:SetAttribute("Stored", math.floor(state.Data.Stored))
+				updateRegister(player)
+			end
+		end
+	end)
+
+	-- Automatically check ghosts in when their hunter walks into the hotel.
+	Loop.every(0.5, "CheckIn", function()
+		for player, state in states do
+			local character = player.Character
+			local root = character and character:FindFirstChild("HumanoidRootPart")
+			if root and #state.Data.Backpack > 0 and MapBuilder.isInside(state.Plot, (root :: BasePart).Position) then
+				HotelService.checkIn(player)
+			end
+		end
+	end)
+end
+
+return HotelService
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="15">
+        <Properties>
+          <string name="Name">Loop</string>
+          <string name="Source"><![CDATA[-- Runs a function on an interval forever. An error in one tick is logged
+-- and the loop keeps going, so one bad frame can never stop the game.
+
+local Loop = {}
+
+function Loop.every(interval: number, name: string, callback: (dt: number) -> ())
+	task.spawn(function()
+		local lastWarning = 0
+		while true do
+			local dt = task.wait(interval)
+			local ok, err = pcall(callback, dt)
+			if not ok and os.clock() - lastWarning > 10 then
+				lastWarning = os.clock()
+				warn("[Loop:" .. name .. "] " .. tostring(err))
+			end
+		end
+	end)
+end
+
+return Loop
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="Script" referent="16">
+        <Properties>
+          <string name="Name">Main</string>
+          <token name="RunContext">0</token>
+          <string name="Source"><![CDATA[-- Server entry point: builds the world, starts every service and runs the
+-- player lifecycle (load data -> assign hotel -> spawn -> save on leave).
+
+local Players = game:GetService("Players")
+
+local Services = script.Parent
+local DataService = require(Services.DataService)
+local EventService = require(Services.EventService)
+local GhostService = require(Services.GhostService)
+local HotelService = require(Services.HotelService)
+local MapBuilder = require(Services.MapBuilder)
+local MonetizationService = require(Services.MonetizationService)
+local PassCache = require(Services.PassCache)
+
+Players.CharacterAutoLoads = false
+
+local plots = MapBuilder.build()
+HotelService.init(plots)
+
+DataService.start()
+PassCache.start()
+EventService.run()
+HotelService.start()
+GhostService.start()
+MonetizationService.start()
+
+local function onCharacterAdded(player: Player, character: Model)
+	HotelService.onCharacterAdded(player, character)
+	GhostService.onCharacterAdded(player, character)
+
+	local humanoid = character:WaitForChild("Humanoid", 10) :: Humanoid?
+	if humanoid then
+		humanoid.Died:Connect(function()
+			task.wait(3)
+			if player.Parent and player.Character == character then
+				player:LoadCharacter()
+			end
+		end)
+	end
+end
+
+local function onPlayerAdded(player: Player)
+	local plot = HotelService.assign(player)
+	if not plot then
+		player:Kick("This server is full. Please join another server!")
+		return
+	end
+
+	PassCache.load(player)
+	local data = DataService.load(player)
+	if not player.Parent then
+		HotelService.cleanup(player)
+		return
+	end
+	if not data then
+		HotelService.cleanup(player)
+		player:Kick("Your data could not be loaded. Please rejoin in a minute!")
+		return
+	end
+
+	HotelService.setup(player, plot, data)
+
+	player.CharacterAdded:Connect(function(character)
+		onCharacterAdded(player, character)
+	end)
+	player:LoadCharacter()
+end
+
+Players.PlayerAdded:Connect(onPlayerAdded)
+for _, player in Players:GetPlayers() do
+	task.spawn(onPlayerAdded, player)
+end
+
+Players.PlayerRemoving:Connect(function(player)
+	GhostService.onPlayerRemoving(player)
+	HotelService.cleanup(player)
+	DataService.release(player)
+end)
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="17">
+        <Properties>
+          <string name="Name">MapBuilder</string>
+          <string name="Source"><![CDATA[-- Builds the whole world out of parts at server start: the haunted
+-- graveyard in the middle and one hotel plot per player around it.
+
+local Lighting = game:GetService("Lighting")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage.Shared.Config)
+local Formulas = require(ReplicatedStorage.Shared.Formulas)
+
+local MapBuilder = {}
+
+-- Layout -------------------------------------------------------------------
+local PLOT_WIDTH = 50
+local PLOT_DEPTH = 64
+local PLOT_ENTRANCE_Z = 40 -- distance from the centre line to a plot's entrance
+local PLOT_X = { -84, -28, 28, 84 }
+local FLOOR_TOP = 0.5
+local ROOM_ROW_X = 17
+local ROOM_FIRST_DEPTH = 11
+local ROOM_SPACING = 6.8
+
+MapBuilder.GraveyardMin = Vector3.new(-110, 0, -32)
+MapBuilder.GraveyardMax = Vector3.new(110, 0, 32)
+
+-- Palette -----------------------------------------------------------------
+local COLORS = {
+	Ground = Color3.fromRGB(38, 52, 40),
+	Dirt = Color3.fromRGB(58, 48, 44),
+	Stone = Color3.fromRGB(95, 92, 105),
+	DarkStone = Color3.fromRGB(55, 52, 64),
+	Wood = Color3.fromRGB(70, 48, 38),
+	Floor = Color3.fromRGB(60, 45, 70),
+	Purple = Color3.fromRGB(170, 90, 255),
+	Green = Color3.fromRGB(110, 255, 140),
+	Orange = Color3.fromRGB(255, 140, 40),
+	Gold = Color3.fromRGB(255, 200, 60),
+	Locked = Color3.fromRGB(120, 120, 130),
+}
+MapBuilder.Colors = COLORS
+
+export type Room = {
+	Index: number,
+	Base: BasePart,
+	Ring: BasePart,
+	Label: TextLabel,
+	GhostCFrame: CFrame,
+}
+
+export type Plot = {
+	Index: number,
+	Model: Model,
+	Origin: CFrame,
+	SpawnCFrame: CFrame,
+	Rooms: { Room },
+	Register: BasePart,
+	RegisterLabel: TextLabel,
+	BuildPad: BasePart,
+	BuildLabel: TextLabel,
+	Stations: { [string]: BasePart },
+	StationLabels: { [string]: TextLabel },
+	SignLabel: TextLabel,
+	StarsLabel: TextLabel,
+	Builds: { [string]: Model },
+	Owner: Player?,
+}
+
+-- Helpers -----------------------------------------------------------------
+local function part(props: { [string]: any }): BasePart
+	local instance = Instance.new(props.ClassName or "Part")
+	instance.Anchored = true
+	instance.TopSurface = Enum.SurfaceType.Smooth
+	instance.BottomSurface = Enum.SurfaceType.Smooth
+	instance.Material = Enum.Material.SmoothPlastic
+	for key, value in props do
+		if key ~= "ClassName" and key ~= "Parent" then
+			(instance :: any)[key] = value
+		end
+	end
+	instance.Parent = props.Parent
+	return instance
+end
+
+local VERTICAL = CFrame.Angles(0, 0, math.pi / 2)
+
+local function cylinder(
+	parent: Instance,
+	name: string,
+	cframe: CFrame,
+	height: number,
+	diameter: number,
+	color: Color3,
+	material: Enum.Material?
+): BasePart
+	return part({
+		Name = name,
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(height, diameter, diameter),
+		CFrame = cframe * VERTICAL,
+		Color = color,
+		Material = material or Enum.Material.SmoothPlastic,
+		Parent = parent,
+	})
+end
+
+local function light(parent: Instance, color: Color3, range: number, brightness: number?)
+	local pointLight = Instance.new("PointLight")
+	pointLight.Color = color
+	pointLight.Range = range
+	pointLight.Brightness = brightness or 1.5
+	pointLight.Shadows = false
+	pointLight.Parent = parent
+end
+
+local function billboard(
+	adornee: BasePart,
+	size: UDim2,
+	offset: Vector3,
+	maxDistance: number?
+): (BillboardGui, TextLabel)
+	local gui = Instance.new("BillboardGui")
+	gui.Size = size
+	gui.StudsOffset = offset
+	gui.MaxDistance = maxDistance or 90
+	gui.LightInfluence = 0
+	gui.ResetOnSpawn = false
+	local label = Instance.new("TextLabel")
+	label.Name = "Text"
+	label.BackgroundTransparency = 1
+	label.Size = UDim2.fromScale(1, 1)
+	label.Font = Enum.Font.FredokaOne
+	label.TextScaled = true
+	label.TextColor3 = Color3.new(1, 1, 1)
+	label.TextStrokeTransparency = 0.15
+	label.RichText = true
+	label.Text = ""
+	label.Parent = gui
+	gui.Parent = adornee
+	return gui, label
+end
+
+-- Lighting ----------------------------------------------------------------
+local function setupLighting()
+	Lighting.ClockTime = 20.8
+	Lighting.Brightness = 1.6
+	Lighting.Ambient = Color3.fromRGB(75, 65, 100)
+	Lighting.OutdoorAmbient = Color3.fromRGB(95, 85, 130)
+	Lighting.EnvironmentDiffuseScale = 0.4
+	Lighting.EnvironmentSpecularScale = 0.4
+	Lighting.GlobalShadows = true
+
+	local atmosphere = Instance.new("Atmosphere")
+	atmosphere.Density = 0.32
+	atmosphere.Offset = 0.1
+	atmosphere.Color = Color3.fromRGB(120, 95, 170)
+	atmosphere.Decay = Color3.fromRGB(60, 40, 95)
+	atmosphere.Glare = 0
+	atmosphere.Haze = 1.6
+	atmosphere.Parent = Lighting
+
+	local bloom = Instance.new("BloomEffect")
+	bloom.Intensity = 0.7
+	bloom.Size = 28
+	bloom.Threshold = 1.4
+	bloom.Parent = Lighting
+
+	local grading = Instance.new("ColorCorrectionEffect")
+	grading.Name = "Grading"
+	grading.Saturation = 0.15
+	grading.Contrast = 0.05
+	grading.Parent = Lighting
+end
+
+-- Graveyard ---------------------------------------------------------------
+local function tombstone(parent: Instance, position: Vector3, rng: Random)
+	local height = rng:NextNumber(2.6, 4)
+	local angle = CFrame.Angles(0, rng:NextNumber(-0.25, 0.25), rng:NextNumber(-0.08, 0.08))
+	local base = CFrame.new(position) * angle
+	part({
+		Name = "Tombstone",
+		Size = Vector3.new(2.6, height, 0.7),
+		CFrame = base * CFrame.new(0, height / 2, 0),
+		Color = COLORS.Stone,
+		Material = Enum.Material.Slate,
+		Parent = parent,
+	})
+	cylinder(
+		parent,
+		"TombTop",
+		base * CFrame.new(0, height, 0) * CFrame.Angles(0, math.pi / 2, math.pi / 2),
+		0.7,
+		2.6,
+		COLORS.Stone,
+		Enum.Material.Slate
+	)
+	part({
+		Name = "Grave",
+		Size = Vector3.new(3, 0.3, 5),
+		CFrame = base * CFrame.new(0, 0.15, 3),
+		Color = COLORS.Dirt,
+		Material = Enum.Material.Ground,
+		Parent = parent,
+	})
+end
+
+local function deadTree(parent: Instance, position: Vector3, rng: Random)
+	local height = rng:NextNumber(10, 16)
+	local base = CFrame.new(position) * CFrame.Angles(0, rng:NextNumber(0, math.pi * 2), 0)
+	cylinder(parent, "Trunk", base * CFrame.new(0, height / 2, 0), height, 1.6, COLORS.Wood, Enum.Material.Wood)
+	for index = 1, 4 do
+		local y = height * (0.45 + index * 0.12)
+		local length = rng:NextNumber(3, 6)
+		local branch = CFrame.new(position + Vector3.new(0, y, 0))
+			* CFrame.Angles(0, index * 1.7 + rng:NextNumber(0, 0.5), 0)
+			* CFrame.Angles(0, 0, math.rad(rng:NextNumber(35, 60)))
+			* CFrame.new(0, length / 2, 0)
+		cylinder(parent, "Branch", branch, length, 0.6, COLORS.Wood, Enum.Material.Wood)
+	end
+end
+
+local function pumpkin(parent: Instance, position: Vector3, size: number)
+	local body = part({
+		Name = "Pumpkin",
+		Shape = Enum.PartType.Ball,
+		Size = Vector3.one * size,
+		CFrame = CFrame.new(position + Vector3.new(0, size * 0.4, 0)),
+		Color = COLORS.Orange,
+		Parent = parent,
+	})
+	cylinder(
+		parent,
+		"Stem",
+		CFrame.new(body.CFrame.Position + Vector3.new(0, size * 0.5, 0)),
+		size * 0.3,
+		size * 0.15,
+		Color3.fromRGB(80, 130, 50)
+	)
+	for _, side in { -1, 1 } do
+		part({
+			Name = "Eye",
+			Size = Vector3.new(size * 0.18, size * 0.18, 0.1),
+			CFrame = CFrame.new(body.CFrame.Position + Vector3.new(side * size * 0.18, size * 0.1, -size * 0.47)),
+			Color = Color3.fromRGB(255, 220, 90),
+			Material = Enum.Material.Neon,
+			Parent = parent,
+		})
+	end
+	light(body, Color3.fromRGB(255, 160, 60), size * 3, 1.2)
+end
+
+local function lampPost(parent: Instance, position: Vector3, color: Color3)
+	cylinder(
+		parent,
+		"Pole",
+		CFrame.new(position + Vector3.new(0, 4, 0)),
+		8,
+		0.5,
+		Color3.fromRGB(35, 30, 40),
+		Enum.Material.Metal
+	)
+	local bulb = part({
+		Name = "Lamp",
+		Shape = Enum.PartType.Ball,
+		Size = Vector3.one * 1.4,
+		CFrame = CFrame.new(position + Vector3.new(0, 8.4, 0)),
+		Color = color,
+		Material = Enum.Material.Neon,
+		CanCollide = false,
+		Parent = parent,
+	})
+	light(bulb, color, 18, 1.6)
+end
+
+local function buildGraveyard(world: Instance)
+	local folder = Instance.new("Folder")
+	folder.Name = "Graveyard"
+	folder.Parent = world
+
+	local size = MapBuilder.GraveyardMax - MapBuilder.GraveyardMin
+	part({
+		Name = "GraveyardGround",
+		Size = Vector3.new(size.X + 8, 0.2, size.Z + 8),
+		CFrame = CFrame.new(Vector3.new(0, 0.1, 0)),
+		Color = Color3.fromRGB(45, 55, 45),
+		Material = Enum.Material.Grass,
+		Parent = folder,
+	})
+
+	local rng = Random.new(2026)
+	local function freeSpot(): Vector3
+		for _ = 1, 30 do
+			local x = rng:NextNumber(MapBuilder.GraveyardMin.X + 6, MapBuilder.GraveyardMax.X - 6)
+			local z = rng:NextNumber(MapBuilder.GraveyardMin.Z + 6, MapBuilder.GraveyardMax.Z - 6)
+			local nearPath = math.abs(z) < 4
+			local nearEntrance = false
+			for _, plotX in PLOT_X do
+				if math.abs(x - plotX) < 10 and math.abs(z) > 20 then
+					nearEntrance = true
+				end
+			end
+			if not nearPath and not nearEntrance and Vector2.new(x, z).Magnitude > 14 then
+				return Vector3.new(x, 0.2, z)
+			end
+		end
+		return Vector3.new(0, 0.2, 20)
+	end
+
+	for _ = 1, 30 do
+		tombstone(folder, freeSpot(), rng)
+	end
+	for _ = 1, 10 do
+		deadTree(folder, freeSpot(), rng)
+	end
+	for _ = 1, 16 do
+		pumpkin(folder, freeSpot(), rng:NextNumber(1.6, 3))
+	end
+
+	-- Main path with lamps
+	part({
+		Name = "Path",
+		Size = Vector3.new(size.X, 0.25, 6),
+		CFrame = CFrame.new(Vector3.new(0, 0.15, 0)),
+		Color = COLORS.Dirt,
+		Material = Enum.Material.Cobblestone,
+		Parent = folder,
+	})
+	for x = -100, 100, 25 do
+		lampPost(folder, Vector3.new(x, 0.2, 4), COLORS.Green)
+		lampPost(folder, Vector3.new(x, 0.2, -4), COLORS.Purple)
+	end
+
+	-- Central haunted gate (spawn point)
+	for _, side in { -1, 1 } do
+		part({
+			Name = "GatePillar",
+			Size = Vector3.new(2.5, 14, 2.5),
+			CFrame = CFrame.new(Vector3.new(side * 9, 7, 0)),
+			Color = COLORS.DarkStone,
+			Material = Enum.Material.Slate,
+			Parent = folder,
+		})
+		local orb = part({
+			Name = "GateOrb",
+			Shape = Enum.PartType.Ball,
+			Size = Vector3.one * 2.4,
+			CFrame = CFrame.new(Vector3.new(side * 9, 15.2, 0)),
+			Color = COLORS.Purple,
+			Material = Enum.Material.Neon,
+			Parent = folder,
+		})
+		light(orb, COLORS.Purple, 24, 2)
+	end
+	local arch = part({
+		Name = "GateArch",
+		Size = Vector3.new(20.5, 2, 2.5),
+		CFrame = CFrame.new(Vector3.new(0, 13, 0)),
+		Color = COLORS.DarkStone,
+		Material = Enum.Material.Slate,
+		Parent = folder,
+	})
+	local _, gateLabel = billboard(arch, UDim2.fromOffset(420, 90), Vector3.new(0, 4, 0), 250)
+	gateLabel.Text = "👻 " .. string.upper(Config.GameName) .. " 👻"
+	gateLabel.TextColor3 = Color3.fromRGB(200, 160, 255)
+
+	local spawn = Instance.new("SpawnLocation")
+	spawn.Name = "GraveyardSpawn"
+	spawn.Anchored = true
+	spawn.Neutral = true
+	spawn.Duration = 0
+	spawn.Size = Vector3.new(8, 0.4, 8)
+	spawn.CFrame = CFrame.new(0, 0.3, 0)
+	spawn.Transparency = 1
+	spawn.CanCollide = false
+	spawn.Parent = folder
+end
+
+-- Hotel builds (the tycoon buttons) ---------------------------------------
+local function buildHotelBuilds(at: (number, number, number) -> CFrame): { [string]: Model }
+	local builds = {}
+	local function newBuild(key: string): Model
+		local model = Instance.new("Model")
+		model.Name = "Build_" .. key
+		builds[key] = model
+		return model
+	end
+
+	-- 1. Fence
+	do
+		local model = newBuild("Fence")
+		local function fence(x: number, depth: number, width: number, length: number)
+			part({
+				Name = "Fence",
+				Size = Vector3.new(width, 3, length),
+				CFrame = at(x, 1.5, depth),
+				Color = COLORS.Wood,
+				Material = Enum.Material.WoodPlanks,
+				Parent = model,
+			})
+		end
+		local half = PLOT_WIDTH / 2
+		fence(-half + 0.4, PLOT_DEPTH / 2, 0.8, PLOT_DEPTH)
+		fence(half - 0.4, PLOT_DEPTH / 2, 0.8, PLOT_DEPTH)
+		fence(0, PLOT_DEPTH - 0.4, PLOT_WIDTH, 0.8)
+		fence(-(half + 8) / 2, 0.4, half - 8, 0.8)
+		fence((half + 8) / 2, 0.4, half - 8, 0.8)
+		for depth = 0, PLOT_DEPTH, 16 do
+			for _, x in { -half + 0.4, half - 0.4 } do
+				part({
+					Name = "Post",
+					Size = Vector3.new(1.4, 4.4, 1.4),
+					CFrame = at(x, 2.2, math.clamp(depth, 0.7, PLOT_DEPTH - 0.7)),
+					Color = COLORS.DarkStone,
+					Material = Enum.Material.Slate,
+					Parent = model,
+				})
+			end
+		end
+	end
+
+	-- 2. Lamps
+	do
+		local model = newBuild("Lamps")
+		for _, depth in { 6, 32, 58 } do
+			for _, x in { -22, 22 } do
+				local position = at(x, 0, depth).Position
+				lampPost(model, position, if x < 0 then COLORS.Purple else COLORS.Green)
+			end
+		end
+	end
+
+	-- 3. Neon sign arch over the entrance
+	do
+		local model = newBuild("Sign")
+		for _, x in { -8.5, 8.5 } do
+			part({
+				Name = "SignPillar",
+				Size = Vector3.new(1.6, 14, 1.6),
+				CFrame = at(x, 7, 0.4),
+				Color = COLORS.DarkStone,
+				Material = Enum.Material.Slate,
+				Parent = model,
+			})
+		end
+		local board = part({
+			Name = "SignBoard",
+			Size = Vector3.new(19, 3.6, 0.8),
+			CFrame = at(0, 14.5, 0.4),
+			Color = Color3.fromRGB(30, 20, 40),
+			Parent = model,
+		})
+		local surface = Instance.new("SurfaceGui")
+		surface.Face = Enum.NormalId.Back
+		surface.LightInfluence = 0
+		surface.PixelsPerStud = 40
+		local text = Instance.new("TextLabel")
+		text.BackgroundTransparency = 1
+		text.Size = UDim2.fromScale(1, 1)
+		text.Font = Enum.Font.FredokaOne
+		text.TextScaled = true
+		text.Text = "✦ GHOST HOTEL ✦"
+		text.TextColor3 = Color3.fromRGB(255, 120, 255)
+		text.Parent = surface
+		surface.Parent = board
+		local tube = part({
+			Name = "SignNeon",
+			Size = Vector3.new(19.4, 0.3, 0.3),
+			CFrame = at(0, 12.6, 0.2),
+			Color = Color3.fromRGB(255, 120, 255),
+			Material = Enum.Material.Neon,
+			Parent = model,
+		})
+		light(tube, Color3.fromRGB(255, 120, 255), 20, 2)
+	end
+
+	-- 4. Red carpet
+	do
+		local model = newBuild("Carpet")
+		part({
+			Name = "Carpet",
+			Size = Vector3.new(7, 0.1, PLOT_DEPTH - 8),
+			CFrame = at(0, 0.05, (PLOT_DEPTH - 8) / 2),
+			Color = Color3.fromRGB(170, 25, 45),
+			Material = Enum.Material.Fabric,
+			CanCollide = false,
+			Parent = model,
+		})
+		for _, x in { -3.6, 3.6 } do
+			part({
+				Name = "CarpetTrim",
+				Size = Vector3.new(0.25, 0.12, PLOT_DEPTH - 8),
+				CFrame = at(x, 0.06, (PLOT_DEPTH - 8) / 2),
+				Color = COLORS.Gold,
+				Material = Enum.Material.Neon,
+				CanCollide = false,
+				Parent = model,
+			})
+		end
+	end
+
+	-- 5. Slime fountain
+	do
+		local model = newBuild("Fountain")
+		local center = at(0, 0, 33)
+		cylinder(model, "Basin", center * CFrame.new(0, 0.75, 0), 1.5, 9, COLORS.Stone, Enum.Material.Slate)
+		cylinder(model, "Slime", center * CFrame.new(0, 1.55, 0), 0.2, 8, COLORS.Green, Enum.Material.Neon)
+		cylinder(model, "Spout", center * CFrame.new(0, 3, 0), 3.5, 1.4, COLORS.Stone, Enum.Material.Slate)
+		local top = part({
+			Name = "SpoutOrb",
+			Shape = Enum.PartType.Ball,
+			Size = Vector3.one * 2,
+			CFrame = center * CFrame.new(0, 5.2, 0),
+			Color = COLORS.Green,
+			Material = Enum.Material.Neon,
+			Parent = model,
+		})
+		light(top, COLORS.Green, 22, 2)
+		local particles = Instance.new("ParticleEmitter")
+		particles.Color = ColorSequence.new(COLORS.Green)
+		particles.LightEmission = 1
+		particles.Rate = 20
+		particles.Speed = NumberRange.new(4, 7)
+		particles.SpreadAngle = Vector2.new(25, 25)
+		particles.Lifetime = NumberRange.new(0.8, 1.2)
+		particles.Acceleration = Vector3.new(0, -12, 0)
+		particles.Size = NumberSequence.new(0.4, 0.1)
+		particles.Parent = top
+	end
+
+	-- 6. Haunted tower (back left corner)
+	do
+		local model = newBuild("Tower")
+		local base = at(-20, 0, 60)
+		part({
+			Name = "Tower",
+			Size = Vector3.new(7, 24, 7),
+			CFrame = base * CFrame.new(0, 12, 0),
+			Color = COLORS.DarkStone,
+			Material = Enum.Material.Slate,
+			Parent = model,
+		})
+		for index, size in { 8.5, 6.5, 4.5, 2 } do
+			part({
+				Name = "Roof",
+				Size = Vector3.new(size, 2, size),
+				CFrame = base * CFrame.new(0, 24 + index * 2 - 1, 0),
+				Color = Color3.fromRGB(80, 40, 110),
+				Material = Enum.Material.Slate,
+				Parent = model,
+			})
+		end
+		for _, y in { 8, 14, 20 } do
+			local window = part({
+				Name = "Window",
+				Size = Vector3.new(2, 2.6, 0.2),
+				CFrame = base * CFrame.new(0, y, 3.55),
+				Color = Color3.fromRGB(255, 220, 110),
+				Material = Enum.Material.Neon,
+				Parent = model,
+			})
+			light(window, Color3.fromRGB(255, 200, 100), 14, 1)
+		end
+	end
+
+	-- 7. Pumpkin garden (back right corner)
+	do
+		local model = newBuild("Garden")
+		local base = at(20, 0, 60)
+		part({
+			Name = "Soil",
+			Size = Vector3.new(7, 0.4, 7),
+			CFrame = base * CFrame.new(0, 0.2, 0),
+			Color = COLORS.Dirt,
+			Material = Enum.Material.Ground,
+			Parent = model,
+		})
+		for index = 0, 5 do
+			local offset = Vector3.new(-2.2 + (index % 3) * 2.2, 0.4, -1.4 + (index // 3) * 2.8)
+			pumpkin(model, (base * CFrame.new(offset)).Position, if index == 4 then 2.6 else 1.8)
+		end
+	end
+
+	-- 8. Blood moon beacon floating high above the hotel
+	do
+		local model = newBuild("Moon")
+		local moon = part({
+			Name = "BloodMoon",
+			Shape = Enum.PartType.Ball,
+			Size = Vector3.one * 14,
+			CFrame = at(0, 60, 32),
+			Color = Color3.fromRGB(255, 50, 60),
+			Material = Enum.Material.Neon,
+			CanCollide = false,
+			Parent = model,
+		})
+		light(moon, Color3.fromRGB(255, 60, 70), 60, 3)
+		local beam = cylinder(model, "MoonBeam", at(0, 30, 32), 58, 3, Color3.fromRGB(255, 80, 90), Enum.Material.Neon)
+		beam.Transparency = 0.7
+		beam.CanCollide = false
+	end
+
+	return builds
+end
+
+-- Plots -------------------------------------------------------------------
+local function buildPlot(world: Instance, index: number, xCenter: number, side: number): Plot
+	-- Looks away from the graveyard, into the plot (+Z for side 1, -Z for side -1).
+	local origin = CFrame.new(xCenter, FLOOR_TOP, side * PLOT_ENTRANCE_Z)
+		* CFrame.Angles(0, if side == 1 then math.pi else 0, 0)
+	-- x: left/right across the plot, depth: distance from the entrance.
+	local function at(x: number, y: number, depth: number): CFrame
+		return origin * CFrame.new(x, y, -depth)
+	end
+
+	local model = Instance.new("Model")
+	model.Name = "Plot" .. index
+	model:SetAttribute("PlotIndex", index)
+
+	part({
+		Name = "Floor",
+		Size = Vector3.new(PLOT_WIDTH, 1, PLOT_DEPTH),
+		CFrame = at(0, -0.5, PLOT_DEPTH / 2),
+		Color = COLORS.Floor,
+		Material = Enum.Material.Slate,
+		Parent = model,
+	})
+	-- Walkway from the graveyard to the entrance
+	part({
+		Name = "Walkway",
+		Size = Vector3.new(10, 0.3, PLOT_ENTRANCE_Z - 30),
+		CFrame = at(0, -0.4, -(PLOT_ENTRANCE_Z - 30) / 2),
+		Color = COLORS.Dirt,
+		Material = Enum.Material.Cobblestone,
+		Parent = model,
+	})
+
+	-- Owner sign above the entrance
+	local signAnchor = part({
+		Name = "OwnerSign",
+		Size = Vector3.new(1, 1, 1),
+		CFrame = at(0, 10, 0),
+		Transparency = 1,
+		CanCollide = false,
+		CanQuery = false,
+		Parent = model,
+	})
+	local signGui, signLabel = billboard(signAnchor, UDim2.fromOffset(360, 110), Vector3.new(0, 0, 0), 160)
+	signLabel.Size = UDim2.fromScale(1, 0.6)
+	signLabel.Text = "Empty Hotel"
+	local stars = Instance.new("TextLabel")
+	stars.Name = "Stars"
+	stars.BackgroundTransparency = 1
+	stars.Size = UDim2.fromScale(1, 0.4)
+	stars.Position = UDim2.fromScale(0, 0.6)
+	stars.Font = Enum.Font.FredokaOne
+	stars.TextScaled = true
+	stars.TextColor3 = COLORS.Gold
+	stars.TextStrokeTransparency = 0.2
+	stars.Text = ""
+	stars.Parent = signGui
+
+	-- Rooms
+	local rooms: { Room } = {}
+	for room = 1, Formulas.TotalRooms do
+		local row = if room <= Config.RoomsPerSide then -1 else 1
+		local slot = (room - 1) % Config.RoomsPerSide
+		local x = row * ROOM_ROW_X
+		local depth = ROOM_FIRST_DEPTH + slot * ROOM_SPACING
+		local center = at(x, 0, depth)
+		local base = cylinder(
+			model,
+			"RoomBase" .. room,
+			center * CFrame.new(0, 0.5, 0),
+			1,
+			5.6,
+			COLORS.DarkStone,
+			Enum.Material.Slate
+		)
+		local ring = cylinder(
+			model,
+			"RoomRing" .. room,
+			center * CFrame.new(0, 1.05, 0),
+			0.15,
+			5.9,
+			COLORS.Locked,
+			Enum.Material.Neon
+		)
+		ring.CanCollide = false
+		local _, label = billboard(base, UDim2.fromOffset(170, 50), Vector3.new(0, 3.2, 0), 60)
+		-- Ghosts face the aisle.
+		local facing = at(0, 0, depth).Position
+		local ghostPosition = center.Position
+		local ghostCFrame = CFrame.lookAt(ghostPosition, Vector3.new(facing.X, ghostPosition.Y, facing.Z))
+		rooms[room] = {
+			Index = room,
+			Base = base,
+			Ring = ring,
+			Label = label,
+			GhostCFrame = ghostCFrame,
+		}
+	end
+
+	-- Cash register (collect pad)
+	local register = part({
+		Name = "Register",
+		Size = Vector3.new(6, 0.4, 6),
+		CFrame = at(-7.5, 0.2, 7),
+		Color = Color3.fromRGB(60, 200, 110),
+		Material = Enum.Material.Neon,
+		Parent = model,
+	})
+	local _, registerLabel = billboard(register, UDim2.fromOffset(240, 70), Vector3.new(0, 4, 0), 80)
+
+	-- Tycoon build button
+	local buildPad = part({
+		Name = "BuildButton",
+		Size = Vector3.new(5, 0.4, 5),
+		CFrame = at(7.5, 0.2, 7),
+		Color = Color3.fromRGB(80, 170, 255),
+		Material = Enum.Material.Neon,
+		Parent = model,
+	})
+	local _, buildLabel = billboard(buildPad, UDim2.fromOffset(260, 80), Vector3.new(0, 4, 0), 80)
+
+	-- Upgrade stations and the cauldron at the back
+	local stations = {}
+	local stationLabels = {}
+	local function station(key: string, x: number, color: Color3)
+		local block = part({
+			Name = key .. "Station",
+			Size = Vector3.new(4, 3, 4),
+			CFrame = at(x, 1.5, 59),
+			Color = color,
+			Material = Enum.Material.Metal,
+			Parent = model,
+		})
+		local glow = part({
+			Name = key .. "Glow",
+			Size = Vector3.new(4.2, 0.3, 4.2),
+			CFrame = at(x, 3.1, 59),
+			Color = color,
+			Material = Enum.Material.Neon,
+			Parent = model,
+		})
+		light(glow, color, 12, 1.2)
+		local _, label = billboard(block, UDim2.fromOffset(230, 80), Vector3.new(0, 5, 0), 70)
+		stations[key] = block
+		stationLabels[key] = label
+	end
+	station("Vacuum", -9, Color3.fromRGB(90, 200, 255))
+	station("Backpack", 9, Color3.fromRGB(255, 170, 60))
+
+	local cauldronCenter = at(0, 0, 58)
+	local pot = cylinder(
+		model,
+		"CauldronStation",
+		cauldronCenter * CFrame.new(0, 1.6, 0),
+		3.2,
+		5,
+		Color3.fromRGB(25, 22, 30),
+		Enum.Material.Metal
+	)
+	local brew = cylinder(
+		model,
+		"CauldronBrew",
+		cauldronCenter * CFrame.new(0, 3.25, 0),
+		0.2,
+		4.3,
+		COLORS.Purple,
+		Enum.Material.Neon
+	)
+	light(brew, COLORS.Purple, 16, 2)
+	local bubbles = Instance.new("ParticleEmitter")
+	bubbles.Color = ColorSequence.new(COLORS.Purple)
+	bubbles.LightEmission = 1
+	bubbles.Rate = 8
+	bubbles.Speed = NumberRange.new(1, 2)
+	bubbles.Lifetime = NumberRange.new(1, 1.6)
+	bubbles.Size = NumberSequence.new(0.5, 0)
+	bubbles.Parent = brew
+	local _, cauldronLabel = billboard(pot, UDim2.fromOffset(230, 80), Vector3.new(0, 5, 0), 70)
+	stations.Cauldron = pot
+	stationLabels.Cauldron = cauldronLabel
+
+	model.Parent = world
+
+	local plot: Plot = {
+		Index = index,
+		Model = model,
+		Origin = origin,
+		SpawnCFrame = at(0, 3, 4) * CFrame.Angles(0, math.pi, 0),
+		Rooms = rooms,
+		Register = register,
+		RegisterLabel = registerLabel,
+		BuildPad = buildPad,
+		BuildLabel = buildLabel,
+		Stations = stations,
+		StationLabels = stationLabels,
+		SignLabel = signLabel,
+		StarsLabel = stars,
+		Builds = {},
+		Owner = nil,
+	}
+	plot.Builds = buildHotelBuilds(at)
+	return plot
+end
+
+-- Is `position` inside the plot's walls?
+function MapBuilder.isInside(plot: Plot, position: Vector3): boolean
+	local localPosition = plot.Origin:PointToObjectSpace(position)
+	local depth = -localPosition.Z
+	return math.abs(localPosition.X) <= PLOT_WIDTH / 2
+		and depth >= 0
+		and depth <= PLOT_DEPTH
+		and localPosition.Y > -6
+		and localPosition.Y < 60
+end
+
+function MapBuilder.build(): { Plot }
+	setupLighting()
+
+	local world = Instance.new("Folder")
+	world.Name = "World"
+
+	part({
+		Name = "Ground",
+		Size = Vector3.new(700, 2, 700),
+		CFrame = CFrame.new(Vector3.new(0, -1, 0)),
+		Color = COLORS.Ground,
+		Material = Enum.Material.Grass,
+		Parent = world,
+	})
+
+	buildGraveyard(world)
+
+	local plots = {}
+	for index = 1, Config.MaxPlots do
+		local column = (index - 1) % #PLOT_X + 1
+		local side = if index <= #PLOT_X then 1 else -1
+		plots[index] = buildPlot(world, index, PLOT_X[column], side)
+	end
+
+	world.Parent = workspace
+	return plots
+end
+
+return MapBuilder
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="18">
+        <Properties>
+          <string name="Name">MonetizationService</string>
+          <string name="Source"><![CDATA[-- Robux monetization: game passes, developer products (ProcessReceipt) and
+-- publishing the resolved IDs for the client shop.
+
+local MarketplaceService = game:GetService("MarketplaceService")
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage.Shared
+local Config = require(Shared.Config)
+local Format = require(Shared.Format)
+local Formulas = require(Shared.Formulas)
+
+local DataService = require(script.Parent.DataService)
+local EventService = require(script.Parent.EventService)
+local HotelService = require(script.Parent.HotelService)
+local PassCache = require(script.Parent.PassCache)
+local Remotes = require(script.Parent.Remotes)
+
+local MonetizationService = {}
+
+-- Resolved IDs (config IDs, or looked up by product name).
+local productIds: { [string]: number } = {}
+local productsById: { [number]: any } = {}
+
+local idsFolder = Instance.new("Configuration")
+idsFolder.Name = "MonetizationIds"
+
+local function publishIds()
+	for _, pass in Config.GamePasses do
+		idsFolder:SetAttribute("Pass_" .. pass.Key, pass.Id)
+	end
+	for _, product in Config.Products do
+		idsFolder:SetAttribute("Product_" .. product.Key, productIds[product.Key] or 0)
+	end
+end
+
+-- Developer products left at Id = 0 are found by their exact name.
+local function resolveProductIds()
+	local missing = false
+	for _, product in Config.Products do
+		if product.Id ~= 0 then
+			productIds[product.Key] = product.Id
+		else
+			missing = true
+		end
+	end
+
+	if missing then
+		local ok, err = pcall(function()
+			local pages = MarketplaceService:GetDeveloperProductsAsync()
+			while true do
+				for _, info in pages:GetCurrentPage() do
+					for _, product in Config.Products do
+						if product.Id == 0 and info.Name == product.Name then
+							productIds[product.Key] = info.ProductId
+						end
+					end
+				end
+				if pages.IsFinished then
+					break
+				end
+				pages:AdvanceToNextPageAsync()
+			end
+		end)
+		if not ok then
+			warn("[Monetization] Could not list developer products:", err)
+		end
+	end
+
+	for _, product in Config.Products do
+		local id = productIds[product.Key]
+		if id and id ~= 0 then
+			productsById[id] = product
+		else
+			warn("[Monetization] Developer product '" .. product.Name .. "' has no ID yet (see README).")
+		end
+	end
+	publishIds()
+end
+
+local function grantProduct(player: Player, product): boolean
+	if product.Kind == "Cash" then
+		local amount = Formulas.cashProductAmount(product, HotelService.getIncomePerSecond(player))
+		HotelService.addCash(player, amount)
+		Remotes.notify(player, "💰 +" .. Format.money(amount) .. " added. Thank you!", "success")
+		return true
+	elseif product.Kind == "WitchingHour" then
+		EventService.start(product.Duration, player)
+		return true
+	end
+	warn("[Monetization] Unknown product kind", product.Kind)
+	return false
+end
+
+local function processReceipt(receipt)
+	local player = Players:GetPlayerByUserId(receipt.PlayerId)
+	if not player then
+		-- Roblox retries the receipt the next time the player joins.
+		return Enum.ProductPurchaseDecision.NotProcessedYet
+	end
+
+	-- Wait for the player's data to finish loading.
+	local deadline = os.clock() + 20
+	while not HotelService.isLoaded(player) and player.Parent and os.clock() < deadline do
+		task.wait(0.5)
+	end
+	if not HotelService.isLoaded(player) then
+		return Enum.ProductPurchaseDecision.NotProcessedYet
+	end
+
+	local purchaseId = tostring(receipt.PurchaseId)
+	if DataService.hasPurchase(player, purchaseId) then
+		return Enum.ProductPurchaseDecision.PurchaseGranted
+	end
+
+	local product = productsById[receipt.ProductId]
+	if not product then
+		warn("[Monetization] Receipt for unknown product", receipt.ProductId)
+		return Enum.ProductPurchaseDecision.NotProcessedYet
+	end
+
+	local ok, granted = pcall(grantProduct, player, product)
+	if not ok or not granted then
+		warn("[Monetization] Failed to grant", product.Name, granted)
+		return Enum.ProductPurchaseDecision.NotProcessedYet
+	end
+
+	DataService.addPurchase(player, purchaseId)
+	-- Only confirm once the grant is safely saved. If the save fails the
+	-- receipt is retried, and the recorded PurchaseId prevents a double grant.
+	if not DataService.save(player) then
+		return Enum.ProductPurchaseDecision.NotProcessedYet
+	end
+	return Enum.ProductPurchaseDecision.PurchaseGranted
+end
+
+function MonetizationService.start()
+	idsFolder.Parent = ReplicatedStorage
+	publishIds()
+	task.spawn(resolveProductIds)
+
+	MarketplaceService.ProcessReceipt = processReceipt
+
+	MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(player, passId, purchased)
+		if not purchased then
+			return
+		end
+		for _, pass in Config.GamePasses do
+			if pass.Id ~= 0 and pass.Id == passId then
+				PassCache.grant(player, pass.Key)
+				Remotes.notify(player, pass.Icon .. " " .. pass.Name .. " unlocked! Thank you!", "success")
+				Remotes.notifyAll("✨ " .. player.DisplayName .. " bought " .. pass.Name .. "!", "event")
+			end
+		end
+	end)
+end
+
+return MonetizationService
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="19">
+        <Properties>
+          <string name="Name">PassCache</string>
+          <string name="Source"><![CDATA[-- Tracks game pass ownership and Roblox Premium for every player.
+-- Ownership is mirrored onto player attributes ("Pass_VIP" = true) so the
+-- client UI can read it.
+
+local MarketplaceService = game:GetService("MarketplaceService")
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage.Shared.Config)
+
+local PassCache = {}
+
+local owned: { [Player]: { [string]: boolean } } = {}
+local changed = Instance.new("BindableEvent")
+
+-- Fires (player, passKey?) whenever a player's perks change.
+PassCache.Changed = changed.Event
+
+local function set(player: Player, key: string, value: boolean)
+	owned[player] = owned[player] or {}
+	if owned[player][key] == value then
+		return
+	end
+	owned[player][key] = value
+	player:SetAttribute("Pass_" .. key, value)
+	changed:Fire(player, key)
+end
+
+function PassCache.owns(player: Player, key: string): boolean
+	local passes = owned[player]
+	return passes ~= nil and passes[key] == true
+end
+
+function PassCache.isPremium(player: Player): boolean
+	return player.MembershipType == Enum.MembershipType.Premium
+end
+
+function PassCache.getPassId(key: string): number
+	local pass = Config.GamePassesByKey[key]
+	return if pass then pass.Id else 0
+end
+
+function PassCache.grant(player: Player, key: string)
+	set(player, key, true)
+end
+
+-- Checks every configured pass. Yields.
+function PassCache.load(player: Player)
+	owned[player] = owned[player] or {}
+	player:SetAttribute("Premium", PassCache.isPremium(player))
+	for _, pass in Config.GamePasses do
+		player:SetAttribute("Pass_" .. pass.Key, false)
+	end
+	for _, pass in Config.GamePasses do
+		if pass.Id ~= 0 then
+			task.spawn(function()
+				local ok, result = pcall(function()
+					return MarketplaceService:UserOwnsGamePassAsync(player.UserId, pass.Id)
+				end)
+				if ok and result and player.Parent then
+					set(player, pass.Key, true)
+				elseif not ok then
+					warn("[PassCache] Could not check pass", pass.Name, result)
+				end
+			end)
+		end
+	end
+end
+
+function PassCache.start()
+	Players.PlayerMembershipChanged:Connect(function(player)
+		player:SetAttribute("Premium", PassCache.isPremium(player))
+		changed:Fire(player, "Premium")
+	end)
+
+	Players.PlayerRemoving:Connect(function(player)
+		owned[player] = nil
+	end)
+end
+
+return PassCache
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="20">
+        <Properties>
+          <string name="Name">Remotes</string>
+          <string name="Source"><![CDATA[-- Creates every RemoteEvent the client talks through.
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local folder = Instance.new("Folder")
+folder.Name = "Remotes"
+
+local function event(name: string): RemoteEvent
+	local remote = Instance.new("RemoteEvent")
+	remote.Name = name
+	remote.Parent = folder
+	return remote
+end
+
+local Remotes = {
+	-- server -> client: (text, kind?) toast notification
+	Notify = event("Notify"),
+	-- server -> client: (kind, position) one-shot visual/sound effect
+	Effect = event("Effect"),
+	-- client -> server: request a rebirth
+	Rebirth = event("Rebirth"),
+	-- client -> server: teleport back to your hotel
+	TeleportHome = event("TeleportHome"),
+}
+
+folder.Parent = ReplicatedStorage
+
+function Remotes.notify(player: Player, text: string, kind: string?)
+	Remotes.Notify:FireClient(player, text, kind or "info")
+end
+
+function Remotes.notifyAll(text: string, kind: string?)
+	Remotes.Notify:FireAllClients(text, kind or "info")
+end
+
+return Remotes
+]]></string>
+        </Properties>
+      </Item>
+    </Item>
+  </Item>
+  <Item class="SoundService" referent="21">
+    <Properties>
+      <string name="Name">SoundService</string>
+    </Properties>
+  </Item>
+  <Item class="StarterPlayer" referent="22">
+    <Properties>
+      <string name="Name">StarterPlayer</string>
+      <float name="CharacterWalkSpeed">18</float>
+    </Properties>
+    <Item class="StarterPlayerScripts" referent="23">
+      <Properties>
+        <string name="Name">StarterPlayerScripts</string>
+      </Properties>
+      <Item class="Folder" referent="24">
+        <Properties>
+          <string name="Name">Client</string>
+        </Properties>
+        <Item class="ModuleScript" referent="25">
+          <Properties>
+            <string name="Name">Hud</string>
+            <string name="Source"><![CDATA[-- Always-visible HUD: cash, income, backpack, event banner and side menu.
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Format = require(Shared.Format)
+
+local Ui = require(script.Parent.Ui)
+
+local player = Players.LocalPlayer
+
+local Hud = {}
+
+export type Callbacks = {
+	OnShop: () -> (),
+	OnRebirth: () -> (),
+	OnHome: () -> (),
+}
+
+local function sideButton(
+	parent: Instance,
+	icon: string,
+	text: string,
+	color: Color3,
+	order: number,
+	callback: () -> ()
+)
+	local button = Ui.new("TextButton", {
+		Name = text,
+		Size = UDim2.fromOffset(74, 74),
+		BackgroundColor3 = color,
+		AutoButtonColor = false,
+		Text = "",
+		LayoutOrder = order,
+		Parent = parent,
+	}, {
+		Ui.corner(16),
+		Ui.stroke(Color3.new(0, 0, 0), 2.5),
+		Ui.gradient(Color3.new(1, 1, 1), Color3.fromRGB(185, 185, 185)),
+	})
+	Ui.label({
+		Size = UDim2.fromScale(1, 0.62),
+		Position = UDim2.fromScale(0, 0.04),
+		Text = icon,
+		MaxTextSize = 36,
+		Parent = button,
+	})
+	Ui.label({
+		Size = UDim2.new(1, -6, 0.3, 0),
+		Position = UDim2.new(0, 3, 0.66, 0),
+		Text = text,
+		TextStrokeTransparency = 0.3,
+		MaxTextSize = 16,
+		Parent = button,
+	})
+	local scale = Ui.new("UIScale", { Parent = button })
+	button.MouseEnter:Connect(function()
+		TweenService:Create(scale, TweenInfo.new(0.12), { Scale = 1.08 }):Play()
+	end)
+	button.MouseLeave:Connect(function()
+		TweenService:Create(scale, TweenInfo.new(0.12), { Scale = 1 }):Play()
+	end)
+	button.Activated:Connect(callback)
+	return button
+end
+
+function Hud.mount(screen: ScreenGui, callbacks: Callbacks)
+	-- Cash --------------------------------------------------------------
+	local cashPanel = Ui.new("Frame", {
+		Name = "Cash",
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 8),
+		Size = UDim2.fromOffset(300, 64),
+		BackgroundColor3 = Ui.Colors.Panel,
+		BackgroundTransparency = 0.08,
+		Parent = screen,
+	}, {
+		Ui.corner(16),
+		Ui.stroke(Ui.Colors.Cash, 2.5),
+	})
+	local cashLabel = Ui.label({
+		Size = UDim2.new(1, -16, 0.62, 0),
+		Position = UDim2.fromOffset(8, 4),
+		Text = "💰 $0",
+		TextColor3 = Ui.Colors.Cash,
+		TextStrokeTransparency = 0.3,
+		MaxTextSize = 34,
+		Parent = cashPanel,
+	})
+	local incomeLabel = Ui.label({
+		Size = UDim2.new(1, -16, 0.3, 0),
+		Position = UDim2.new(0, 8, 0.64, 0),
+		Text = "+$0/s",
+		TextColor3 = Ui.Colors.Muted,
+		MaxTextSize = 18,
+		Parent = cashPanel,
+	})
+	local cashScale = Ui.new("UIScale", { Parent = cashPanel })
+
+	local lastCash = 0
+	local function updateCash()
+		local cash = player:GetAttribute("Cash") or 0
+		cashLabel.Text = "💰 " .. Format.money(cash)
+		if cash > lastCash then
+			cashScale.Scale = 1.08
+			TweenService:Create(cashScale, TweenInfo.new(0.25, Enum.EasingStyle.Back), { Scale = 1 }):Play()
+		end
+		lastCash = cash
+	end
+	local function updateIncome()
+		local income = player:GetAttribute("IncomePerSec") or 0
+		local stored = player:GetAttribute("Stored") or 0
+		local text = "+" .. Format.perSecond(income)
+		if stored >= 1 then
+			text ..= '  <font color="#ffd966">• ' .. Format.money(stored) .. " in register</font>"
+		end
+		incomeLabel.Text = text
+	end
+	player:GetAttributeChangedSignal("Cash"):Connect(updateCash)
+	player:GetAttributeChangedSignal("IncomePerSec"):Connect(updateIncome)
+	player:GetAttributeChangedSignal("Stored"):Connect(updateIncome)
+	updateCash()
+	updateIncome()
+
+	-- Witching Hour banner ---------------------------------------------
+	local banner = Ui.new("Frame", {
+		Name = "EventBanner",
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 78),
+		Size = UDim2.fromOffset(360, 34),
+		BackgroundColor3 = Color3.fromRGB(90, 20, 90),
+		Visible = false,
+		Parent = screen,
+	}, {
+		Ui.corner(12),
+		Ui.stroke(Color3.fromRGB(255, 120, 255), 2),
+	})
+	local bannerLabel = Ui.label({
+		Size = UDim2.new(1, -12, 1, -6),
+		Position = UDim2.fromScale(0.5, 0.5),
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Text = "",
+		MaxTextSize = 20,
+		Parent = banner,
+	})
+	task.spawn(function()
+		while true do
+			local active = ReplicatedStorage:GetAttribute("WitchingHour") == true
+			banner.Visible = active
+			if active then
+				local left = (ReplicatedStorage:GetAttribute("WitchingHourEndsAt") or 0) - workspace:GetServerTimeNow()
+				bannerLabel.Text = "🌕 WITCHING HOUR • Rare ghosts x3 • " .. Format.time(left)
+			end
+			task.wait(0.5)
+		end
+	end)
+
+	-- Side menu ----------------------------------------------------------
+	local menu = Ui.new("Frame", {
+		Name = "Menu",
+		AnchorPoint = Vector2.new(0, 0.5),
+		Position = UDim2.new(0, 10, 0.5, 0),
+		Size = UDim2.fromOffset(74, 250),
+		BackgroundTransparency = 1,
+		Parent = screen,
+	}, {
+		Ui.new("UIListLayout", {
+			SortOrder = Enum.SortOrder.LayoutOrder,
+			Padding = UDim.new(0, 10),
+			VerticalAlignment = Enum.VerticalAlignment.Center,
+		}),
+	})
+	sideButton(menu, "🛒", "Shop", Ui.Colors.Gold, 1, callbacks.OnShop)
+	sideButton(menu, "♻️", "Rebirth", Ui.Colors.Purple, 2, callbacks.OnRebirth)
+	sideButton(menu, "🏨", "Hotel", Ui.Colors.Blue, 3, callbacks.OnHome)
+
+	-- Backpack / vacuum ---------------------------------------------------
+	local bag = Ui.new("Frame", {
+		Name = "Backpack",
+		AnchorPoint = Vector2.new(0.5, 1),
+		Position = UDim2.new(0.5, 0, 1, -86),
+		Size = UDim2.fromOffset(290, 40),
+		BackgroundColor3 = Ui.Colors.Panel,
+		BackgroundTransparency = 0.12,
+		Parent = screen,
+	}, {
+		Ui.corner(12),
+		Ui.stroke(Ui.Colors.Stroke, 2),
+	})
+	local bagLabel = Ui.label({
+		Size = UDim2.new(1, -16, 1, -8),
+		Position = UDim2.fromScale(0.5, 0.5),
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Text = "",
+		MaxTextSize = 22,
+		Parent = bag,
+	})
+	local hint = Ui.label({
+		Name = "Hint",
+		AnchorPoint = Vector2.new(0.5, 1),
+		Position = UDim2.new(0.5, 0, 1, -132),
+		Size = UDim2.fromOffset(460, 30),
+		Text = "",
+		TextColor3 = Color3.fromRGB(255, 240, 150),
+		TextStrokeTransparency = 0.2,
+		MaxTextSize = 22,
+		Parent = screen,
+	})
+
+	local function updateBag()
+		local count = player:GetAttribute("BackpackCount") or 0
+		local capacity = player:GetAttribute("BackpackCapacity") or 0
+		local power = player:GetAttribute("VacuumPower") or 1
+		local color = if capacity > 0 and count >= capacity then "#ff8080" else "#ffffff"
+		bagLabel.Text =
+			string.format('🎒 <font color="%s">%d/%d</font>   🌀 Power x%.2f', color, count, capacity, power)
+		local caught = player:GetAttribute("Caught") or 0
+		if caught == 0 then
+			hint.Text = "👻 Go to the graveyard and HOLD click near a ghost to vacuum it!"
+		elseif capacity > 0 and count >= capacity then
+			hint.Text = "🎒 Backpack full! Walk into your hotel to check the ghosts in."
+		elseif caught < 4 and count > 0 then
+			hint.Text = "🏨 Walk into your hotel to check ghosts in. Collect cash at the green register!"
+		else
+			hint.Text = ""
+		end
+	end
+	for _, attribute in { "BackpackCount", "BackpackCapacity", "VacuumPower", "Caught" } do
+		player:GetAttributeChangedSignal(attribute):Connect(updateBag)
+	end
+	updateBag()
+end
+
+return Hud
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="LocalScript" referent="26">
+          <Properties>
+            <string name="Name">Main</string>
+            <string name="Source"><![CDATA[-- Client entry point: builds the UI and hooks up remotes.
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Hud = require(script.Parent.Hud)
+local Notifications = require(script.Parent.Notifications)
+local RebirthPanel = require(script.Parent.RebirthPanel)
+local Shop = require(script.Parent.Shop)
+local WorldEffects = require(script.Parent.WorldEffects)
+
+local player = Players.LocalPlayer
+local remotes = ReplicatedStorage:WaitForChild("Remotes")
+
+local screen = Instance.new("ScreenGui")
+screen.Name = "HotelUI"
+screen.ResetOnSpawn = false
+screen.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+screen.Parent = player:WaitForChild("PlayerGui")
+
+Notifications.mount(screen)
+local shop = Shop.mount(screen)
+local rebirth = RebirthPanel.mount(screen)
+
+Hud.mount(screen, {
+	OnShop = function()
+		shop:toggle()
+	end,
+	OnRebirth = function()
+		rebirth:toggle()
+	end,
+	OnHome = function()
+		remotes.TeleportHome:FireServer()
+	end,
+})
+
+remotes:WaitForChild("Notify").OnClientEvent:Connect(function(text: string, kind: string?)
+	Notifications.show(text, kind)
+	if kind == "error" then
+		WorldEffects.playSound("error")
+	elseif kind == "rare" or kind == "event" then
+		WorldEffects.playSound("rare")
+	end
+end)
+
+WorldEffects.start()
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="27">
+          <Properties>
+            <string name="Name">Notifications</string>
+            <string name="Source"><![CDATA[-- Toast notifications stacked under the cash display.
+
+local TweenService = game:GetService("TweenService")
+
+local Ui = require(script.Parent.Ui)
+
+local Notifications = {}
+
+local MAX_TOASTS = 5
+local LIFETIME = 4.5
+
+local KIND_COLORS = {
+	info = Ui.Colors.Purple,
+	success = Ui.Colors.Green,
+	error = Ui.Colors.Red,
+	event = Ui.Colors.Gold,
+	rare = Color3.fromRGB(255, 90, 220),
+}
+
+local container: Frame
+
+function Notifications.mount(screen: ScreenGui)
+	container = Ui.new("Frame", {
+		Name = "Notifications",
+		BackgroundTransparency = 1,
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 118),
+		Size = UDim2.new(0.9, 0, 0, 260),
+		Parent = screen,
+	}, {
+		Ui.new("UIListLayout", {
+			SortOrder = Enum.SortOrder.LayoutOrder,
+			HorizontalAlignment = Enum.HorizontalAlignment.Center,
+			Padding = UDim.new(0, 6),
+		}),
+		Ui.new("UISizeConstraint", { MaxSize = Vector2.new(520, math.huge) }),
+	})
+end
+
+local order = 0
+
+function Notifications.show(text: string, kind: string?)
+	if not container then
+		return
+	end
+	order += 1
+	local color = KIND_COLORS[kind or "info"] or KIND_COLORS.info
+
+	local toast = Ui.new("Frame", {
+		Name = "Toast",
+		BackgroundColor3 = Ui.Colors.Panel,
+		BackgroundTransparency = 0.1,
+		Size = UDim2.new(1, 0, 0, 40),
+		LayoutOrder = order,
+		Parent = container,
+	}, {
+		Ui.corner(10),
+		Ui.stroke(color, 2),
+	})
+	local label = Ui.label({
+		Size = UDim2.new(1, -20, 1, -8),
+		Position = UDim2.fromScale(0.5, 0.5),
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Text = text,
+		TextColor3 = if kind == "error" then Color3.fromRGB(255, 190, 190) else Ui.Colors.Text,
+		MaxTextSize = 22,
+		Parent = toast,
+	})
+	local scale = Ui.new("UIScale", { Scale = 0.6, Parent = toast })
+	TweenService:Create(scale, TweenInfo.new(0.25, Enum.EasingStyle.Back), { Scale = 1 }):Play()
+
+	local toasts = {}
+	for _, child in container:GetChildren() do
+		if child:IsA("Frame") then
+			table.insert(toasts, child)
+		end
+	end
+	table.sort(toasts, function(a, b)
+		return a.LayoutOrder < b.LayoutOrder
+	end)
+	while #toasts > MAX_TOASTS do
+		table.remove(toasts, 1):Destroy()
+	end
+
+	task.delay(LIFETIME, function()
+		if not toast.Parent then
+			return
+		end
+		local fade = TweenInfo.new(0.35)
+		TweenService:Create(toast, fade, { BackgroundTransparency = 1 }):Play()
+		TweenService:Create(label, fade, { TextTransparency = 1, TextStrokeTransparency = 1 }):Play()
+		local stroke = toast:FindFirstChildOfClass("UIStroke")
+		if stroke then
+			TweenService:Create(stroke, fade, { Transparency = 1 }):Play()
+		end
+		task.wait(0.4)
+		toast:Destroy()
+	end)
+end
+
+return Notifications
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="28">
+          <Properties>
+            <string name="Name">Panel</string>
+            <string name="Source"><![CDATA[-- Reusable modal window with a title bar, close button and scrolling body.
+-- Only one panel is open at a time.
+
+local TweenService = game:GetService("TweenService")
+local Workspace = game:GetService("Workspace")
+
+local Ui = require(script.Parent.Ui)
+
+local Panel = {}
+Panel.__index = Panel
+
+export type Panel = {
+	Frame: Frame,
+	Content: ScrollingFrame,
+	Opened: RBXScriptSignal,
+	IsOpen: boolean,
+	open: (self: Panel) -> (),
+	close: (self: Panel) -> (),
+	toggle: (self: Panel) -> (),
+}
+
+local current = nil
+
+function Panel.new(screen: ScreenGui, title: string, accent: Color3)
+	local frame = Ui.new("Frame", {
+		Name = title,
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.52),
+		Size = UDim2.fromScale(0.92, 0.8),
+		BackgroundColor3 = Ui.Colors.Panel,
+		Visible = false,
+		Parent = screen,
+	}, {
+		Ui.corner(20),
+		Ui.stroke(accent, 3),
+		Ui.new("UISizeConstraint", { MaxSize = Vector2.new(660, 540) }),
+	})
+	local scale = Ui.new("UIScale", { Parent = frame })
+
+	Ui.label({
+		Size = UDim2.new(1, -120, 0, 44),
+		Position = UDim2.fromOffset(18, 10),
+		Text = title,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextColor3 = accent,
+		MaxTextSize = 34,
+		Parent = frame,
+	})
+
+	local closeButton = Ui.button({
+		Size = UDim2.fromOffset(44, 44),
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -10, 0, 10),
+		Text = "✕",
+		Color = Ui.Colors.Red,
+		Parent = frame,
+	})
+
+	local content = Ui.new("ScrollingFrame", {
+		Name = "Content",
+		Position = UDim2.fromOffset(14, 64),
+		Size = UDim2.new(1, -28, 1, -78),
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		CanvasSize = UDim2.new(),
+		AutomaticCanvasSize = Enum.AutomaticSize.Y,
+		ScrollBarThickness = 6,
+		ScrollBarImageColor3 = accent,
+		Parent = frame,
+	}, {
+		Ui.new("UIListLayout", { SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 10) }),
+		Ui.new("UIPadding", { PaddingRight = UDim.new(0, 10), PaddingBottom = UDim.new(0, 10) }),
+	})
+
+	local opened = Instance.new("BindableEvent")
+	local self = setmetatable({
+		Frame = frame,
+		Content = content,
+		Opened = opened.Event,
+		IsOpen = false,
+		_opened = opened,
+		_scale = scale,
+	}, Panel)
+
+	closeButton.Activated:Connect(function()
+		self:close()
+	end)
+
+	return self
+end
+
+function Panel:open()
+	if current and current ~= self then
+		current:close()
+	end
+	current = self
+	self.IsOpen = true
+	self.Frame.Visible = true
+	local camera = Workspace.CurrentCamera
+	local fit = if camera then math.clamp(camera.ViewportSize.Y / 640, 0.6, 1) else 1
+	self._scale.Scale = fit * 0.85
+	TweenService:Create(self._scale, TweenInfo.new(0.2, Enum.EasingStyle.Back), { Scale = fit }):Play()
+	self._opened:Fire()
+end
+
+function Panel:close()
+	self.IsOpen = false
+	self.Frame.Visible = false
+	if current == self then
+		current = nil
+	end
+end
+
+function Panel:toggle()
+	if self.IsOpen then
+		self:close()
+	else
+		self:open()
+	end
+end
+
+return Panel
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="29">
+          <Properties>
+            <string name="Name">RebirthPanel</string>
+            <string name="Source"><![CDATA[-- Rebirth window: shows the cost, what you keep and what you gain.
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared.Config)
+local Format = require(Shared.Format)
+local Formulas = require(Shared.Formulas)
+
+local Panel = require(script.Parent.Panel)
+local Ui = require(script.Parent.Ui)
+
+local player = Players.LocalPlayer
+
+local RebirthPanel = {}
+
+function RebirthPanel.mount(screen: ScreenGui)
+	local remotes = ReplicatedStorage:WaitForChild("Remotes")
+	local panel = Panel.new(screen, "♻️ REBIRTH", Ui.Colors.Purple)
+	local list = panel.Content
+
+	local function row(order: number, height: number, color: Color3?): TextLabel
+		return Ui.label({
+			Size = UDim2.new(1, 0, 0, height),
+			Text = "",
+			TextColor3 = color or Ui.Colors.Text,
+			TextWrapped = true,
+			MaxTextSize = 24,
+			LayoutOrder = order,
+			Parent = list,
+		})
+	end
+
+	local status = row(1, 40)
+	local gains = row(2, 90, Ui.Colors.Cash)
+	local warning = row(3, 60, Color3.fromRGB(255, 170, 170))
+	warning.Text =
+		"⚠️ Resets your cash, ghosts, rooms, upgrades and hotel builds.\nRebirths and game passes are kept."
+
+	local progressBack = Ui.new("Frame", {
+		Size = UDim2.new(1, 0, 0, 26),
+		BackgroundColor3 = Color3.fromRGB(20, 14, 30),
+		LayoutOrder = 4,
+		Parent = list,
+	}, { Ui.corner(13) })
+	local progressFill = Ui.new("Frame", {
+		Size = UDim2.fromScale(0, 1),
+		BackgroundColor3 = Ui.Colors.Purple,
+		Parent = progressBack,
+	}, { Ui.corner(13) })
+	local progressText = Ui.label({
+		Size = UDim2.fromScale(1, 1),
+		Text = "",
+		MaxTextSize = 18,
+		Parent = progressBack,
+	})
+
+	local button = Ui.button({
+		Size = UDim2.new(1, 0, 0, 60),
+		Text = "REBIRTH",
+		Color = Ui.Colors.Purple,
+		MaxTextSize = 32,
+		LayoutOrder = 5,
+		Parent = list,
+	})
+
+	local function refresh()
+		local rebirths = player:GetAttribute("Rebirths") or 0
+		local cash = player:GetAttribute("Cash") or 0
+		local cost = Formulas.rebirthCost(rebirths)
+		status.Text = "Rebirths: " .. rebirths .. "   •   Cost: " .. Format.money(cost)
+		gains.Text = string.format(
+			"✅ +%d%% income forever (x%.1f → x%.1f)\n✅ +%d%% vacuum power forever",
+			Config.Rebirth.IncomeBonus * 100,
+			1 + rebirths * Config.Rebirth.IncomeBonus,
+			1 + (rebirths + 1) * Config.Rebirth.IncomeBonus,
+			Config.Rebirth.VacuumBonus * 100
+		)
+		local ratio = math.clamp(cash / cost, 0, 1)
+		progressFill.Size = UDim2.fromScale(ratio, 1)
+		progressText.Text = Format.money(cash) .. " / " .. Format.money(cost)
+		local ready = cash >= cost
+		button.BackgroundColor3 = if ready then Ui.Colors.Purple else Ui.Colors.Grey
+		Ui.setButtonText(button, if ready then "♻️ REBIRTH NOW" else "Not enough cash")
+	end
+
+	button.Activated:Connect(function()
+		local cost = Formulas.rebirthCost(player:GetAttribute("Rebirths") or 0)
+		if (player:GetAttribute("Cash") or 0) >= cost then
+			remotes.Rebirth:FireServer()
+			panel:close()
+		end
+	end)
+
+	player:GetAttributeChangedSignal("Cash"):Connect(function()
+		if panel.IsOpen then
+			refresh()
+		end
+	end)
+	player:GetAttributeChangedSignal("Rebirths"):Connect(refresh)
+	panel.Opened:Connect(refresh)
+	refresh()
+
+	return panel
+end
+
+return RebirthPanel
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="30">
+          <Properties>
+            <string name="Name">Shop</string>
+            <string name="Source"><![CDATA[-- Robux shop: game passes, cash packs and the Witching Hour (with odds).
+
+local MarketplaceService = game:GetService("MarketplaceService")
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared.Config)
+local Format = require(Shared.Format)
+local Formulas = require(Shared.Formulas)
+local Odds = require(Shared.Odds)
+
+local Notifications = require(script.Parent.Notifications)
+local Panel = require(script.Parent.Panel)
+local Ui = require(script.Parent.Ui)
+
+local player = Players.LocalPlayer
+
+local Shop = {}
+
+local priceCache: { [string]: number } = {}
+
+local function getIds(): Instance?
+	return ReplicatedStorage:FindFirstChild("MonetizationIds")
+end
+
+local function getId(kind: string, key: string): number
+	local ids = getIds()
+	return if ids then ids:GetAttribute(kind .. "_" .. key) or 0 else 0
+end
+
+local function fetchPrice(kind: string, id: number, callback: (number) -> ())
+	local cacheKey = kind .. id
+	if priceCache[cacheKey] then
+		callback(priceCache[cacheKey])
+		return
+	end
+	task.spawn(function()
+		local ok, info = pcall(function()
+			local infoType = if kind == "Pass" then Enum.InfoType.GamePass else Enum.InfoType.Product
+			return MarketplaceService:GetProductInfoAsync(id, infoType)
+		end)
+		if ok and info and info.PriceInRobux then
+			priceCache[cacheKey] = info.PriceInRobux
+			callback(info.PriceInRobux)
+		end
+	end)
+end
+
+local function sectionTitle(parent: Instance, text: string, order: number)
+	Ui.label({
+		Size = UDim2.new(1, 0, 0, 34),
+		Text = text,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextColor3 = Ui.Colors.Gold,
+		MaxTextSize = 26,
+		LayoutOrder = order,
+		Parent = parent,
+	})
+end
+
+local function grid(parent: Instance, order: number): Frame
+	return Ui.new("Frame", {
+		Size = UDim2.fromScale(1, 0),
+		AutomaticSize = Enum.AutomaticSize.Y,
+		BackgroundTransparency = 1,
+		LayoutOrder = order,
+		Parent = parent,
+	}, {
+		Ui.new("UIGridLayout", {
+			CellSize = UDim2.new(0.5, -6, 0, 150),
+			CellPadding = UDim2.fromOffset(12, 12),
+			SortOrder = Enum.SortOrder.LayoutOrder,
+		}),
+	})
+end
+
+type CardInfo = {
+	Icon: string,
+	Title: string,
+	Description: string,
+	Order: number,
+	Color: Color3,
+}
+
+local function card(parent: Instance, info: CardInfo): (Frame, TextButton, TextLabel)
+	local frame = Ui.new("Frame", {
+		BackgroundColor3 = Ui.Colors.PanelLight,
+		LayoutOrder = info.Order,
+		Parent = parent,
+	}, {
+		Ui.corner(14),
+		Ui.stroke(info.Color, 2),
+	})
+	Ui.label({
+		Size = UDim2.fromOffset(56, 56),
+		Position = UDim2.fromOffset(8, 8),
+		Text = info.Icon,
+		MaxTextSize = 44,
+		Parent = frame,
+	})
+	Ui.label({
+		Size = UDim2.new(1, -76, 0, 28),
+		Position = UDim2.fromOffset(70, 10),
+		Text = info.Title,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		MaxTextSize = 24,
+		Parent = frame,
+	})
+	local description = Ui.label({
+		Size = UDim2.new(1, -76, 0, 50),
+		Position = UDim2.fromOffset(70, 38),
+		Text = info.Description,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextYAlignment = Enum.TextYAlignment.Top,
+		TextColor3 = Ui.Colors.Muted,
+		TextWrapped = true,
+		MaxTextSize = 16,
+		Parent = frame,
+	})
+	local button = Ui.button({
+		Size = UDim2.new(1, -16, 0, 44),
+		Position = UDim2.new(0, 8, 1, -52),
+		Text = "...",
+		Color = Ui.Colors.Green,
+		MaxTextSize = 24,
+		Parent = frame,
+	})
+	return frame, button, description
+end
+
+function Shop.mount(screen: ScreenGui)
+	local panel = Panel.new(screen, "🛒 SHOP", Ui.Colors.Gold)
+	local list = panel.Content
+
+	-- Game passes -------------------------------------------------------
+	sectionTitle(list, "✨ Game Passes (forever)", 1)
+	local passGrid = grid(list, 2)
+	for index, pass in Config.GamePasses do
+		local _, button = card(passGrid, {
+			Icon = pass.Icon,
+			Title = pass.Name,
+			Description = pass.Description,
+			Order = index,
+			Color = Ui.Colors.Gold,
+		})
+
+		local function refresh()
+			local id = getId("Pass", pass.Key)
+			if player:GetAttribute("Pass_" .. pass.Key) then
+				Ui.setButtonText(button, "✅ OWNED")
+				button.BackgroundColor3 = Ui.Colors.Grey
+			elseif id == 0 then
+				Ui.setButtonText(button, "Coming soon")
+				button.BackgroundColor3 = Ui.Colors.Grey
+			else
+				button.BackgroundColor3 = Ui.Colors.Green
+				Ui.setButtonText(button, "Buy")
+				fetchPrice("Pass", id, function(price)
+					if not player:GetAttribute("Pass_" .. pass.Key) then
+						Ui.setButtonText(button, "R$ " .. price)
+					end
+				end)
+			end
+		end
+		button.Activated:Connect(function()
+			local id = getId("Pass", pass.Key)
+			if player:GetAttribute("Pass_" .. pass.Key) then
+				return
+			end
+			if id == 0 then
+				Notifications.show("This pass isn't set up yet.", "error")
+				return
+			end
+			MarketplaceService:PromptGamePassPurchase(player, id)
+		end)
+		player:GetAttributeChangedSignal("Pass_" .. pass.Key):Connect(refresh)
+		panel.Opened:Connect(refresh)
+		refresh()
+	end
+
+	-- Products ------------------------------------------------------------
+	sectionTitle(list, "💰 Cash & Boosts", 3)
+	local productGrid = grid(list, 4)
+	for index, product in Config.Products do
+		local description = if product.Kind == "WitchingHour"
+			then string.format(
+				"Rare ghosts x%d + double spawns for EVERYONE for %s!",
+				Config.WitchingHour.Luck,
+				Format.time(product.Duration)
+			)
+			else ""
+		local _, button, descriptionLabel = card(productGrid, {
+			Icon = product.Icon,
+			Title = product.Name,
+			Description = description,
+			Order = index,
+			Color = if product.Kind == "WitchingHour" then Color3.fromRGB(255, 120, 255) else Ui.Colors.Cash,
+		})
+
+		local function refresh()
+			if product.Kind == "Cash" then
+				local amount = Formulas.cashProductAmount(product, player:GetAttribute("IncomePerSec") or 0)
+				descriptionLabel.Text = '<font color="#7dff9b">+' .. Format.money(amount) .. "</font> cash instantly"
+			end
+			local id = getId("Product", product.Key)
+			if id == 0 then
+				Ui.setButtonText(button, "Coming soon")
+				button.BackgroundColor3 = Ui.Colors.Grey
+			else
+				button.BackgroundColor3 = Ui.Colors.Green
+				Ui.setButtonText(button, "Buy")
+				fetchPrice("Product", id, function(price)
+					Ui.setButtonText(button, "R$ " .. price)
+				end)
+			end
+		end
+		button.Activated:Connect(function()
+			local id = getId("Product", product.Key)
+			if id == 0 then
+				Notifications.show("This item isn't set up yet.", "error")
+				return
+			end
+			MarketplaceService:PromptProductPurchase(player, id)
+		end)
+		panel.Opened:Connect(refresh)
+		refresh()
+	end
+
+	-- Odds disclosure -------------------------------------------------------
+	sectionTitle(list, "🎲 Ghost odds (normal → Witching Hour)", 5)
+	local oddsBox = Ui.new("Frame", {
+		Size = UDim2.fromScale(1, 0),
+		AutomaticSize = Enum.AutomaticSize.Y,
+		BackgroundColor3 = Ui.Colors.PanelLight,
+		LayoutOrder = 6,
+		Parent = list,
+	}, {
+		Ui.corner(12),
+		Ui.padding(10),
+		Ui.new("UIListLayout", { SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 2) }),
+	})
+	local normal = Odds.getChances(1)
+	local boosted = Odds.getChances(Config.WitchingHour.Luck)
+	for index, rarity in Config.Rarities do
+		Ui.label({
+			Size = UDim2.new(1, 0, 0, 22),
+			Text = string.format(
+				'<font color="#%s">%s</font>   %s → <font color="#ff9cff">%s</font>',
+				rarity.Color:ToHex(),
+				rarity.Name,
+				Format.percent(normal[index]),
+				Format.percent(boosted[index])
+			),
+			TextXAlignment = Enum.TextXAlignment.Left,
+			MaxTextSize = 18,
+			LayoutOrder = index,
+			Parent = oddsBox,
+		})
+	end
+	local mutationText = {}
+	for _, mutation in Config.Mutations do
+		table.insert(
+			mutationText,
+			string.format("%s %s (x%d)", mutation.Name, Format.percent(mutation.Chance * 100), mutation.Multiplier)
+		)
+	end
+	Ui.label({
+		Size = UDim2.new(1, 0, 0, 36),
+		Text = "Mutations: " .. table.concat(mutationText, " • "),
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextColor3 = Ui.Colors.Muted,
+		TextWrapped = true,
+		MaxTextSize = 16,
+		LayoutOrder = 100,
+		Parent = oddsBox,
+	})
+
+	return panel
+end
+
+return Shop
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="31">
+          <Properties>
+            <string name="Name">Ui</string>
+            <string name="Source"><![CDATA[-- Tiny UI toolkit: instance creation + the game's visual style.
+
+local Ui = {}
+
+Ui.Colors = {
+	Panel = Color3.fromRGB(28, 20, 44),
+	PanelLight = Color3.fromRGB(46, 34, 70),
+	Stroke = Color3.fromRGB(150, 100, 255),
+	Text = Color3.fromRGB(255, 255, 255),
+	Muted = Color3.fromRGB(190, 175, 220),
+	Cash = Color3.fromRGB(120, 255, 140),
+	Gold = Color3.fromRGB(255, 205, 70),
+	Green = Color3.fromRGB(70, 210, 120),
+	Blue = Color3.fromRGB(80, 160, 255),
+	Purple = Color3.fromRGB(160, 90, 255),
+	Red = Color3.fromRGB(240, 80, 90),
+	Grey = Color3.fromRGB(110, 105, 125),
+}
+
+Ui.Font = Enum.Font.FredokaOne
+
+function Ui.new(className: string, props: { [string]: any }?, children: { Instance }?): any
+	local instance = Instance.new(className)
+	local parent = nil
+	for key, value in props or {} do
+		if key == "Parent" then
+			parent = value
+		else
+			(instance :: any)[key] = value
+		end
+	end
+	for _, child in children or {} do
+		child.Parent = instance
+	end
+	instance.Parent = parent
+	return instance
+end
+
+function Ui.corner(radius: number?): UICorner
+	return Ui.new("UICorner", { CornerRadius = UDim.new(0, radius or 12) })
+end
+
+function Ui.stroke(color: Color3?, thickness: number?): UIStroke
+	return Ui.new("UIStroke", {
+		Color = color or Ui.Colors.Stroke,
+		Thickness = thickness or 2,
+		ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+	})
+end
+
+function Ui.padding(pixels: number): UIPadding
+	local amount = UDim.new(0, pixels)
+	return Ui.new("UIPadding", {
+		PaddingTop = amount,
+		PaddingBottom = amount,
+		PaddingLeft = amount,
+		PaddingRight = amount,
+	})
+end
+
+function Ui.gradient(top: Color3, bottom: Color3): UIGradient
+	return Ui.new("UIGradient", {
+		Color = ColorSequence.new(top, bottom),
+		Rotation = 90,
+	})
+end
+
+function Ui.label(props: { [string]: any }): TextLabel
+	local defaults = {
+		BackgroundTransparency = 1,
+		Font = Ui.Font,
+		TextColor3 = Ui.Colors.Text,
+		TextScaled = true,
+		RichText = true,
+	}
+	for key, value in props do
+		if key ~= "MaxTextSize" then
+			defaults[key] = value
+		end
+	end
+	local label = Ui.new("TextLabel", defaults)
+	Ui.new("UITextSizeConstraint", { MaxTextSize = props.MaxTextSize or 40, Parent = label })
+	return label
+end
+
+-- Chunky game button with a darker bottom edge and a press animation.
+function Ui.button(props: { [string]: any }): TextButton
+	local color: Color3 = props.Color or Ui.Colors.Green
+	local button = Ui.new("TextButton", {
+		Name = props.Name or "Button",
+		Size = props.Size or UDim2.fromOffset(160, 50),
+		Position = props.Position or UDim2.new(),
+		AnchorPoint = props.AnchorPoint or Vector2.zero,
+		BackgroundColor3 = color,
+		AutoButtonColor = false,
+		Text = "",
+		LayoutOrder = props.LayoutOrder or 0,
+		Parent = props.Parent,
+	}, {
+		Ui.corner(props.Radius or 12),
+		Ui.stroke(Color3.new(0, 0, 0), 2),
+		Ui.gradient(Color3.new(1, 1, 1), Color3.fromRGB(200, 200, 200)),
+	})
+	Ui.label({
+		Name = "Label",
+		Size = UDim2.new(1, -12, 1, -8),
+		Position = UDim2.fromScale(0.5, 0.5),
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Text = props.Text or "",
+		TextStrokeTransparency = 0.4,
+		MaxTextSize = props.MaxTextSize or 28,
+		Parent = button,
+	})
+	local scale = Ui.new("UIScale", { Parent = button })
+	button.MouseButton1Down:Connect(function()
+		scale.Scale = 0.92
+	end)
+	button.MouseButton1Up:Connect(function()
+		scale.Scale = 1
+	end)
+	button.MouseLeave:Connect(function()
+		scale.Scale = 1
+	end)
+	return button
+end
+
+function Ui.setButtonText(button: TextButton, text: string)
+	local label = button:FindFirstChild("Label") :: TextLabel?
+	if label then
+		label.Text = text
+	end
+end
+
+return Ui
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="32">
+          <Properties>
+            <string name="Name">WorldEffects</string>
+            <string name="Source"><![CDATA[-- Client-side juice: owner-only prompts, rainbow ghosts, bobbing room
+-- ghosts, mini ghosts orbiting hunters, particle bursts, sounds and the
+-- VIP chat tag.
+
+local CollectionService = game:GetService("CollectionService")
+local Debris = game:GetService("Debris")
+local Players = game:GetService("Players")
+local ProximityPromptService = game:GetService("ProximityPromptService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local SoundService = game:GetService("SoundService")
+local TextChatService = game:GetService("TextChatService")
+local Workspace = game:GetService("Workspace")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared.Config)
+local GhostFactory = require(Shared.GhostFactory)
+
+local player = Players.LocalPlayer
+
+local WorldEffects = {}
+
+local BOB_DISTANCE = 140
+local MAX_MINIS = 6
+
+--------------------------------------------------------------------------
+-- Sounds
+--------------------------------------------------------------------------
+local SOUNDS = {
+	collect = { Id = "rbxasset://sounds/electronicpingshort.wav", Pitch = 1.25, Volume = 0.6 },
+	capture = { Id = "rbxasset://sounds/swordlunge.wav", Pitch = 1.5, Volume = 0.7 },
+	rare = { Id = "rbxasset://sounds/electronicpingshort.wav", Pitch = 1.7, Volume = 0.8 },
+	build = { Id = "rbxasset://sounds/electronicpingshort.wav", Pitch = 0.8, Volume = 0.7 },
+	error = { Id = "rbxasset://sounds/clickfast.wav", Pitch = 0.8, Volume = 0.5 },
+}
+
+function WorldEffects.playSound(name: string)
+	local info = SOUNDS[name]
+	if not info then
+		return
+	end
+	local sound = Instance.new("Sound")
+	sound.SoundId = info.Id
+	sound.PlaybackSpeed = info.Pitch
+	sound.Volume = info.Volume
+	sound.Parent = SoundService
+	sound:Play()
+	Debris:AddItem(sound, 3)
+end
+
+--------------------------------------------------------------------------
+-- Particle bursts
+--------------------------------------------------------------------------
+local effectsFolder = Instance.new("Folder")
+effectsFolder.Name = "LocalEffects"
+effectsFolder.Parent = Workspace
+
+local function burst(position: Vector3, color: Color3, count: number, speed: number)
+	local anchor = Instance.new("Part")
+	anchor.Anchored = true
+	anchor.CanCollide = false
+	anchor.CanQuery = false
+	anchor.CanTouch = false
+	anchor.Transparency = 1
+	anchor.Size = Vector3.one
+	anchor.Position = position
+	anchor.Parent = effectsFolder
+
+	local emitter = Instance.new("ParticleEmitter")
+	emitter.Color = ColorSequence.new(color)
+	emitter.LightEmission = 1
+	emitter.Size = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.9),
+		NumberSequenceKeypoint.new(1, 0),
+	})
+	emitter.Speed = NumberRange.new(speed * 0.5, speed)
+	emitter.SpreadAngle = Vector2.new(180, 180)
+	emitter.Lifetime = NumberRange.new(0.5, 1)
+	emitter.Drag = 3
+	emitter.Rate = 0
+	emitter.Parent = anchor
+	emitter:Emit(count)
+	Debris:AddItem(anchor, 2)
+end
+
+local EFFECT_COLORS = {
+	collect = Color3.fromRGB(120, 255, 140),
+	checkin = Color3.fromRGB(90, 255, 220),
+	build = Color3.fromRGB(255, 220, 90),
+	fuse = Color3.fromRGB(190, 110, 255),
+	release = Color3.fromRGB(220, 220, 255),
+	rebirth = Color3.fromRGB(190, 110, 255),
+	fade = Color3.fromRGB(180, 170, 210),
+}
+
+local function onEffect(kind: string, position: Vector3, rarity: number?)
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
+	local near = root ~= nil and (root.Position - position).Magnitude < 90
+
+	if kind == "capture" then
+		local color = if rarity and Config.Rarities[rarity] then Config.Rarities[rarity].Color else Color3.new(1, 1, 1)
+		burst(position, color, 18 + (rarity or 1) * 6, 12)
+		if near then
+			WorldEffects.playSound(if rarity and rarity >= 4 then "rare" else "capture")
+		end
+	elseif kind == "fade" then
+		burst(position, EFFECT_COLORS.fade, 10, 5)
+	else
+		burst(position + Vector3.new(0, 2, 0), EFFECT_COLORS[kind] or Color3.new(1, 1, 1), 24, 14)
+		if near then
+			WorldEffects.playSound(if kind == "collect" then "collect" else "build")
+		end
+	end
+end
+
+--------------------------------------------------------------------------
+-- Owner-only prompts
+--------------------------------------------------------------------------
+local function watchPrompt(prompt: ProximityPrompt)
+	if not prompt:GetAttribute("OwnerOnly") then
+		return
+	end
+	local function apply()
+		local isOwner = prompt:GetAttribute("OwnerUserId") == player.UserId
+		prompt.Enabled = isOwner and prompt:GetAttribute("ServerEnabled") ~= false
+	end
+	apply()
+	prompt:GetAttributeChangedSignal("OwnerUserId"):Connect(apply)
+	prompt:GetAttributeChangedSignal("ServerEnabled"):Connect(apply)
+end
+
+--------------------------------------------------------------------------
+-- Room ghost bobbing
+--------------------------------------------------------------------------
+local bobbing: { [Model]: { Base: CFrame, Phase: number } } = {}
+
+local function trackRoomGhost(instance: Instance)
+	if instance:IsA("Model") then
+		bobbing[instance] = { Base = instance:GetPivot(), Phase = math.random() * math.pi * 2 }
+	end
+end
+
+--------------------------------------------------------------------------
+-- Mini ghosts orbiting players who carry ghosts
+--------------------------------------------------------------------------
+local minis: { [Player]: { Key: string, Models: { Model } } } = {}
+
+local function rebuildMinis(owner: Player, key: string)
+	local entry = minis[owner]
+	if entry then
+		for _, model in entry.Models do
+			model:Destroy()
+		end
+	end
+	local models = {}
+	if key ~= "" then
+		for index, item in string.split(key, ",") do
+			if index > MAX_MINIS then
+				break
+			end
+			local parts = string.split(item, ":")
+			local ghostId = parts[1]
+			local mutation = if parts[2] and parts[2] ~= "" then parts[2] else nil
+			if Config.GhostsById[ghostId] then
+				local model = GhostFactory.build(ghostId, mutation, { Scale = 0.32, Billboard = false, Light = false })
+				model.Parent = effectsFolder
+				table.insert(models, model)
+			end
+		end
+	end
+	minis[owner] = { Key = key, Models = models }
+end
+
+local function updateMinis(now: number)
+	for _, owner in Players:GetPlayers() do
+		local key = owner:GetAttribute("BackpackIds") or ""
+		local entry = minis[owner]
+		if not entry or entry.Key ~= key then
+			rebuildMinis(owner, key)
+			entry = minis[owner]
+		end
+		local character = owner.Character
+		local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
+		local count = #entry.Models
+		for index, model in entry.Models do
+			if root then
+				local angle = now * 1.6 + index * (math.pi * 2 / count)
+				local offset =
+					Vector3.new(math.cos(angle) * 3.2, 1.2 + math.sin(now * 3 + index) * 0.35, math.sin(angle) * 3.2)
+				model:PivotTo(CFrame.new(root.Position + offset) * CFrame.Angles(0, -angle, 0))
+			else
+				model:PivotTo(CFrame.new(0, -500, 0))
+			end
+		end
+	end
+	for owner, entry in minis do
+		if not owner.Parent then
+			for _, model in entry.Models do
+				model:Destroy()
+			end
+			minis[owner] = nil
+		end
+	end
+end
+
+--------------------------------------------------------------------------
+-- Start
+--------------------------------------------------------------------------
+function WorldEffects.start()
+	local remotes = ReplicatedStorage:WaitForChild("Remotes")
+	remotes:WaitForChild("Effect").OnClientEvent:Connect(onEffect)
+
+	for _, descendant in Workspace:GetDescendants() do
+		if descendant:IsA("ProximityPrompt") then
+			watchPrompt(descendant)
+		end
+	end
+	Workspace.DescendantAdded:Connect(function(descendant)
+		if descendant:IsA("ProximityPrompt") then
+			watchPrompt(descendant)
+		end
+	end)
+	ProximityPromptService.PromptTriggered:Connect(function()
+		WorldEffects.playSound("collect")
+	end)
+
+	for _, instance in CollectionService:GetTagged("RoomGhost") do
+		trackRoomGhost(instance)
+	end
+	CollectionService:GetInstanceAddedSignal("RoomGhost"):Connect(trackRoomGhost)
+	CollectionService:GetInstanceRemovedSignal("RoomGhost"):Connect(function(instance)
+		bobbing[instance :: Model] = nil
+	end)
+
+	RunService.RenderStepped:Connect(function()
+		local now = os.clock()
+		local camera = Workspace.CurrentCamera
+		local cameraPosition = if camera then camera.CFrame.Position else Vector3.zero
+
+		-- Rainbow mutation
+		local rainbow = Color3.fromHSV((now * 0.25) % 1, 0.55, 1)
+		for _, part in CollectionService:GetTagged("Rainbow") do
+			(part :: BasePart).Color = rainbow
+		end
+		for _, gradient in CollectionService:GetTagged("RainbowGradient") do
+			local uiGradient = (gradient :: Instance):FindFirstChildOfClass("UIGradient")
+			if uiGradient then
+				uiGradient.Offset = Vector2.new(math.sin(now * 1.5) * 0.4, 0)
+			end
+		end
+
+		-- Room ghosts gently float
+		for model, info in bobbing do
+			if not model.Parent then
+				bobbing[model] = nil
+			elseif (info.Base.Position - cameraPosition).Magnitude < BOB_DISTANCE then
+				local lift = math.sin(now * 2 + info.Phase) * 0.35
+				local sway = math.sin(now * 0.8 + info.Phase) * 0.25
+				model:PivotTo(info.Base * CFrame.new(0, lift, 0) * CFrame.Angles(0, sway, 0))
+			end
+		end
+
+		updateMinis(now)
+	end)
+
+	-- [VIP] chat tag
+	TextChatService.OnIncomingMessage = function(message: TextChatMessage)
+		local source = message.TextSource
+		local speaker = source and Players:GetPlayerByUserId(source.UserId)
+		if speaker and speaker:GetAttribute("Pass_VIP") then
+			local properties = Instance.new("TextChatMessageProperties")
+			properties.PrefixText = '<font color="#FFD34D">[VIP]</font> ' .. message.PrefixText
+			return properties
+		end
+		return nil
+	end
+end
+
+return WorldEffects
+]]></string>
+          </Properties>
+        </Item>
+      </Item>
+    </Item>
+  </Item>
+  <Item class="TextChatService" referent="33">
+    <Properties>
+      <string name="Name">TextChatService</string>
+    </Properties>
+  </Item>
+  <Item class="Workspace" referent="34">
+    <Properties>
+      <string name="Name">Workspace</string>
+      <bool name="NeedsPivotMigration">false</bool>
+      <bool name="StreamingEnabled">false</bool>
+    </Properties>
+  </Item>
+</roblox>

@@ -1,0 +1,26 @@
+--- a/src/instance/base.rs	2026-09-24 12:52:36.537253072 +0000
++++ b/src/instance/base.rs	2026-09-24 12:39:38.260930284 +0000
+@@ -258,6 +258,11 @@
+         return this.get_name().into_lua(lua);
+     }
+ 
++    // Test harness patch: implemented properties override reflected ones.
++    if let Some(getter) = InstanceRegistry::find_property_getter(lua, &this, &prop_name) {
++        return getter.call(this_ud.clone());
++    }
++
+     if let Some(info) = find_property_info(this.class_name, &prop_name) {
+         if let Some(prop) = this.get_property(&prop_name) {
+             if let DomValue::Enum(enum_value) = prop {
+@@ -337,6 +342,11 @@
+ ) -> LuaResult<()> {
+     ensure_not_destroyed(&this)?;
+ 
++    // Test harness patch: implemented properties override reflected ones.
++    if let Some(setter) = InstanceRegistry::find_property_setter(lua, &this, &prop_name) {
++        return setter.call((this_ud.clone(), prop_value));
++    }
++
+     match prop_name.as_str() {
+         "ClassName" => {
+             return Err(LuaError::RuntimeError(
