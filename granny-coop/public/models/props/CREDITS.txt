@@ -1,0 +1,11 @@
+Реквизит (упакован tools/pack-props.mjs, текстуры уменьшены):
+
+armchair.glb — «Chair Damask Purplegold» из KhronosGroup/glTF-Sample-Assets: Eric Chadwick (CC-BY-4.0) — Models and Textures
+sofa.glb — «GlamVelvetSofa» из KhronosGroup/glTF-Sample-Assets: Eric Chadwick (CC-BY-4.0) — Everything
+chair.glb — «Sheen Chair» из KhronosGroup/glTF-Sample-Assets: Eric Chadwick (CC0-1.0) — Everything
+vase.glb — «Glass Vase with Flowers» из KhronosGroup/glTF-Sample-Assets: Eric Chadwick (CC0-1.0) — Glass vase; Rico Cilliers (CC0-1.0) — Flowers
+barnlamp.glb — «Anisotropy Barn Lamp» из KhronosGroup/glTF-Sample-Assets: Eric Chadwick (CC-BY-4.0) — Everything
+brokenwindow.glb — «Glass Broken Window» из KhronosGroup/glTF-Sample-Assets: Eric Chadwick (CC-BY-4.0) — Entire asset
+lantern.glb — «Lantern» из KhronosGroup/glTF-Sample-Assets: sbtron (CC0-1.0) — Initial version; Frank Galligan (CC0-1.0) — Draco compression
+
+Лицензии: CC0 1.0 и CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). Источник: https://github.com/KhronosGroup/glTF-Sample-Assets
