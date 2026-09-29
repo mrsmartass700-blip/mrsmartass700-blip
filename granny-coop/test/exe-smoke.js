@@ -31,6 +31,11 @@ const ok = (t) => console.log('  ✓', t);
 
 try {
   console.log(`Бинарник: ${exe} (${(fs.statSync(exe).size / 1048576).toFixed(1)} МБ)`);
+  if (IS_WIN) {
+    const b = fs.readFileSync(exe), pe = b.readUInt32LE(0x3c);
+    assert.equal(b.readUInt16LE(pe + 24 + 68), 2, 'подсистема Windows GUI (без окна консоли)');
+    ok('PE: подсистема GUI');
+  }
 
   // ---------- режим игры ----------
   const game = run(exe, ['17777', '--no-browser'], tmp);
@@ -83,6 +88,11 @@ try {
     for (const s of st.steps) assert.equal(s.state, s.id === 'runtime' ? 'skip' : 'ok', `${s.id}: ${s.msg}`);
     const desk = execFileSync('powershell.exe', ['-NoProfile', '-Command', "[Environment]::GetFolderPath('Desktop')"], { encoding: 'utf8' }).trim();
     assert.ok(fs.existsSync(path.join(desk, 'Бабка Кооп.lnk')), 'ярлык на рабочем столе');
+    const progs = execFileSync('powershell.exe', ['-NoProfile', '-Command', "[Environment]::GetFolderPath('Programs')"], { encoding: 'utf8' }).trim();
+    for (const l of ['Бабка Кооп.lnk', 'Удалить «Бабка Кооп».lnk']) assert.ok(fs.existsSync(path.join(progs, 'Бабка Кооп', l)), 'меню «Пуск»: ' + l);
+    const parse = execFileSync('powershell.exe', ['-NoProfile', '-Command',
+      `$e = $null; [void][System.Management.Automation.Language.Parser]::ParseFile('${path.join(dir, 'uninstall.ps1')}', [ref]$null, [ref]$e); $e.Count`], { encoding: 'utf8' }).trim();
+    assert.equal(parse, '0', 'uninstall.ps1 разбирается PowerShell 5.1');
     const reg = execFileSync('reg.exe', ['query', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\BabkaCoop', '/v', 'DisplayName'], { encoding: 'utf8' });
     assert.ok(/REG_SZ/.test(reg), 'запись в «Программы и компоненты»');
     const fw = execFileSync('netsh', ['advfirewall', 'firewall', 'show', 'rule', 'name=Babka Coop (TCP 17888)'], { encoding: 'utf8' });

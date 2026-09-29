@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Бабка: Кооп</title>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E👵%3C/text%3E%3C/svg%3E" />
+  <link rel="icon" href="/icon.png" />
   <link rel="stylesheet" href="style.css" />
   <script type="importmap">{ "imports": { "three": "/vendor/three.module.min.js", "three/addons/": "/vendor/addons/" } }</script>
 </head>
@@ -26,6 +26,11 @@
       </div>
       <button id="joinBtn" class="btn big">Войти в дом</button>
       <p id="menuMsg" class="msg"></p>
+      <details class="help" id="joinFriend">
+        <summary>Подключиться к другу</summary>
+        <p class="hint">Друг хостит игру? Впиши его адрес из лобби (Radmin VPN: 26.x.x.x).</p>
+        <div class="joinrow"><input id="friendInput" placeholder="26.12.34.56:7777" autocomplete="off" spellcheck="false" /><button id="friendBtn" class="btn">Войти</button></div>
+      </details>
       <details class="help">
         <summary>Как играть по Radmin VPN</summary>
         <ol>

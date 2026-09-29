@@ -10,6 +10,7 @@ import * as esbuild from 'esbuild';
 import { inject } from 'postject';
 import * as ResEdit from 'resedit';
 import { makeIco } from '../installer/core.js';
+import { fsAssets } from '../server/app.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const BUILD = path.join(ROOT, 'build'), DIST = path.join(ROOT, 'dist'), CACHE = path.join(BUILD, 'cache');
@@ -67,14 +68,15 @@ if (isWin) {
 } else {
   base = process.execPath;
 }
-let exe = fs.readFileSync(base);
+const baseExe = fs.readFileSync(base);
+const CONSOLE = process.argv.includes('--console');
 
-// 5. иконка с бабкой и сведения о файле (только Windows)
-if (isWin) {
-  step('Иконка и сведения о версии (resedit)');
-  const nt = ResEdit.NtExecutable.from(exe, { ignoreCert: true });
+// 5. иконка и сведения о файле (только Windows) — отдельно для игры и для установщика
+function withResources(desc, original) {
+  if (!isWin) return baseExe;
+  const nt = ResEdit.NtExecutable.from(baseExe, { ignoreCert: true });
   const res = ResEdit.NtExecutableResource.from(nt);
-  const ico = ResEdit.Data.IconFile.from(makeIco([16, 24, 32, 48, 64, 128, 256]));
+  const ico = ResEdit.Data.IconFile.from(makeIco(fsAssets(ROOT).read));
   const groups = ResEdit.Resource.IconGroupEntry.fromEntries(res.entries);
   const targets = groups.length ? groups.map(g => [g.id, g.lang]) : [[1, 1033]];
   for (const [id, lang] of targets) ResEdit.Resource.IconGroupEntry.replaceIconsForResource(res.entries, id, lang, ico.icons.map(i => i.data));
@@ -86,25 +88,40 @@ if (isWin) {
   vi.setFileVersion(a, b, c, 0, lang.lang);
   vi.setProductVersion(a, b, c, 0, lang.lang);
   vi.setStringValues(lang, {
-    ProductName: 'Бабка: Кооп', FileDescription: 'Бабка: Кооп — кооперативный хоррор (LAN / Radmin VPN)',
-    CompanyName: 'Бабка и Внуки Inc.', LegalCopyright: '© Бабка и Внуки Inc. Все тапки защищены.',
-    OriginalFilename: 'BabkaCoop.exe', InternalName: 'BabkaCoop', ProductVersion: pkg.version, FileVersion: pkg.version,
+    ProductName: 'Бабка: Кооп', FileDescription: desc,
+    CompanyName: 'Бабка и Внуки', LegalCopyright: '© Бабка и Внуки. Все тапки защищены.',
+    OriginalFilename: original, InternalName: original.replace('.exe', ''), ProductVersion: pkg.version, FileVersion: pkg.version,
     Comments: `Собрано на Node.js ${NODE_VERSION}`,
   });
   vi.outputToResourceEntries(res.entries);
   res.outputResource(nt);
-  exe = Buffer.from(nt.generate());
+  return Buffer.from(nt.generate());
+}
+
+// PE: подсистема Windows GUI (2) — без чёрного окна консоли. Node сам подставит «пустые» stdout/stderr.
+function setGuiSubsystem(file) {
+  const buf = fs.readFileSync(file);
+  const pe = buf.readUInt32LE(0x3c);
+  if (buf.toString('latin1', pe, pe + 4) !== 'PE\0\0') throw new Error('не PE-файл');
+  const opt = pe + 24;
+  const magic = buf.readUInt16LE(opt);
+  if (magic !== 0x20b && magic !== 0x10b) throw new Error('неизвестный Optional Header');
+  buf.writeUInt16LE(2, opt + 68);
+  fs.writeFileSync(file, buf);
 }
 
 // 6. внедряем блоб
-step('Внедрение блоба (postject)');
-const out = path.join(DIST, isWin ? 'BabkaCoop.exe' : 'babka-coop');
-fs.writeFileSync(out, exe);
-await inject(out, 'NODE_SEA_BLOB', fs.readFileSync(blob), {
-  sentinelFuse: 'NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2',
-});
-if (!isWin) fs.chmodSync(out, 0o755);
+async function build(file, desc) {
+  const out = path.join(DIST, file);
+  fs.writeFileSync(out, withResources(desc, file.replace(/^babka-coop(-setup)?$/, 'BabkaCoop$1.exe')));
+  await inject(out, 'NODE_SEA_BLOB', fs.readFileSync(blob), { sentinelFuse: 'NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2' });
+  if (isWin && !CONSOLE) setGuiSubsystem(out);
+  if (!isWin) fs.chmodSync(out, 0o755);
+  return out;
+}
+// установщик копирует сам себя как BabkaCoop.exe, поэтому оба файла — один и тот же бинарник
+step('Внедрение блоба (postject) и подсистема GUI');
+const out = await build(isWin ? 'BabkaCoop.exe' : 'babka-coop', 'Бабка: Кооп — кооперативный хоррор (LAN / Radmin VPN)');
 const setup = path.join(DIST, isWin ? 'BabkaCoop-Setup.exe' : 'babka-coop-setup');
 fs.copyFileSync(out, setup);
-if (!isWin) fs.chmodSync(setup, 0o755);
 console.log(`\n✔ Готово:\n  ${out} (${(fs.statSync(out).size / 1048576).toFixed(1)} МБ) — игра\n  ${setup} — тот же файл, запускает мастер установки`);

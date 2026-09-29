@@ -1,74 +1,53 @@
-﻿# Бабка: Кооп — деинсталлятор. Бабка против.
+﻿# «Бабка: Кооп» — удаление игры. Запускается из «Параметры → Приложения», ярлыка в «Пуске» или UNINSTALL.bat.
 $ErrorActionPreference = 'Continue'
-[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-$Host.UI.RawUI.WindowTitle = 'Удаление бабки (она это запомнит)'
 $dir = $PSScriptRoot
 $port = '__PORT__'
 $app = 'Бабка Кооп'
+Add-Type -AssemblyName System.Windows.Forms
+[System.Windows.Forms.Application]::EnableVisualStyles()
+$title = 'Удаление «Бабка: Кооп»'
 
-function Say($t, $c = 'Gray', $d = 0) { Write-Host $t -ForegroundColor $c; if ($d) { Start-Sleep -Milliseconds $d } }
-function Dots($t, $ms = 900) { Write-Host -NoNewline "  $t"; for ($i = 0; $i -lt 3; $i++) { Start-Sleep -Milliseconds ($ms / 3); Write-Host -NoNewline '.' }; Write-Host ' ok' -ForegroundColor Green }
+$q = [System.Windows.Forms.MessageBox]::Show(
+  "Удалить игру «Бабка: Кооп» и все её компоненты?`n`nПапка: $dir",
+  $title, 'YesNo', 'Question', 'Button2')
+if ($q -ne 'Yes') { exit 0 }
 
-Clear-Host
-Say ''
-Say '        .-"""-.' DarkGray
-Say '       /  _ _  \      "Внучок... ты куда это собрался?"' DarkGray
-Say '       | (o)(o) |' White
-Say '       |   __   |' White
-Say '        \ \__/ /' White
-Say '         `----`' DarkGray
-Say ''
-Say '  Мастер удаления бабки, версия «Ну и пожалуйста»' Yellow
-Say ''
-$a = Read-Host '  Вы действительно хотите удалить бабку? (да/нет)'
-if ($a -notmatch '^\s*(д|да|y|yes|lf)\s*$') {
-  Say ''
-  Say '  Бабка рада, что вы остались. Держите пирожок.' Green
-  Say '         (  )' Yellow
-  Say '      .-(    )-.' Yellow
-  Say '     (__________)' Yellow
-  Say ''
-  Read-Host '  Нажмите Enter'
-  exit
-}
-$b = Read-Host '  Точно? Она пирожки напекла... (да/нет)'
-if ($b -notmatch '^\s*(д|да|y|yes|lf)\s*$') { Say '  Правильно. Пирожки остынут.' Green; Read-Host '  Нажмите Enter'; exit }
+# 1. закрываем игру и её окна (иначе файлы заняты)
+Get-Process -Name 'BabkaCoop' -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+try {
+  Get-CimInstance Win32_Process -Filter "Name='msedge.exe' OR Name='chrome.exe' OR Name='browser.exe'" -ErrorAction Stop |
+    Where-Object { $_.CommandLine -like '*BabkaCoop\browser-*' } |
+    ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+} catch { }
+Start-Sleep -Milliseconds 700
 
-Say ''
-Say '  Хорошо. Бабка собирает вещи:' Cyan
-Dots 'Складывает тапки в пакет'
-Dots 'Забирает биту (на память)'
-Dots 'Снимает капканы (кажется, все)'
-Dots 'Выключает скрипучие половицы'
-
-# ярлыки
+# 2. ярлыки
 $desk = Join-Path ([Environment]::GetFolderPath('Desktop')) "$app.lnk"
-if (Test-Path $desk) { Remove-Item $desk -Force }
+if (Test-Path -LiteralPath $desk) { Remove-Item -LiteralPath $desk -Force }
 $sm = Join-Path ([Environment]::GetFolderPath('Programs')) $app
-if (Test-Path $sm) { Remove-Item $sm -Recurse -Force }
-Dots 'Стирает ярлыки со стола'
+if (Test-Path -LiteralPath $sm) { Remove-Item -LiteralPath $sm -Recurse -Force }
 
-# «Программы и компоненты»
+# 3. запись в «Приложениях»
 Remove-Item 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\BabkaCoop' -Recurse -Force -ErrorAction SilentlyContinue
-Dots 'Выписывается из реестра'
 
-# брандмауэр (нужны права администратора)
+# 4. правило брандмауэра (нужны права администратора)
 $rule = "Babka Coop (TCP $port)"
-$has = Get-NetFirewallRule -DisplayName $rule -ErrorAction SilentlyContinue
-if ($has) {
-  Say '  Сейчас Windows попросит права — это чтобы закрыть порт в брандмауэре.' DarkYellow
+$fwNote = ''
+if (Get-NetFirewallRule -DisplayName $rule -ErrorAction SilentlyContinue) {
   try {
-    Start-Process -FilePath 'netsh.exe' -ArgumentList "advfirewall firewall delete rule name=`"$rule`"" -Verb RunAs -WindowStyle Hidden -Wait
-    Dots 'Закрывает за собой дверь (порт)'
-  } catch { Say '  Порт остался открыт (вы не дали прав). Правило можно удалить вручную.' DarkYellow }
+    Start-Process -FilePath 'netsh.exe' -ArgumentList "advfirewall firewall delete rule name=`"$rule`"" -Verb RunAs -WindowStyle Hidden -Wait -ErrorAction Stop
+  } catch { $fwNote = "`n`nПравило брандмауэра «$rule» не удалено (не было прав администратора). Его можно удалить вручную в «Брандмауэр Защитника Windows → Дополнительные параметры»." }
 }
 
-Say ''
-Say '  Бабка ушла, громко хлопнув дверью. БАМ.' Red
-Say '  ...но она вернётся. Они всегда возвращаются.' DarkGray
-Say ''
-Read-Host '  Нажмите Enter, чтобы закончить'
+# 5. данные игры (логи, профиль окна) вне папки установки
+$data = Join-Path $env:LOCALAPPDATA 'BabkaCoop'
+$extra = ''
+if ((Test-Path -LiteralPath $data) -and ((Resolve-Path -LiteralPath $data).Path -ne (Resolve-Path -LiteralPath $dir).Path)) { $extra = $data }
 
-# удаляем папку уже после выхода из скрипта
+[void][System.Windows.Forms.MessageBox]::Show("Игра «Бабка: Кооп» удалена с компьютера.$fwNote`n`nСпасибо, что играли. Бабка будет скучать.", $title, 'OK', 'Information')
+
+# 6. саму папку удаляем после выхода из скрипта
 Set-Location $env:TEMP
-Start-Process -FilePath 'cmd.exe' -ArgumentList "/c timeout /t 2 /nobreak >nul & rmdir /s /q `"$dir`"" -WindowStyle Hidden
+$cmd = "/c timeout /t 2 /nobreak >nul & rmdir /s /q `"$dir`""
+if ($extra) { $cmd += " & rmdir /s /q `"$extra`"" }
+Start-Process -FilePath 'cmd.exe' -ArgumentList $cmd -WindowStyle Hidden

@@ -77,7 +77,7 @@ viewModel.add(vmTorch);
 const noShadow = (o) => o.traverse(m => { if (m.isMesh) { m.castShadow = false; m.receiveShadow = false; } });
 noShadow(vmTorch);
 const vmHeld = new THREE.Group();
-vmHeld.position.set(-0.2, -0.24, -0.45);
+vmHeld.position.set(-0.22, -0.27, -0.5);
 viewModel.add(vmHeld);
 const vmLight = new THREE.PointLight(0xffe8c8, 0.25, 1.2, 2); // чуть подсвечиваем предметы в руках
 vmLight.position.set(0, -0.1, -0.3); camera.add(vmLight);
@@ -173,7 +173,21 @@ $('#diffSelect').onchange = (e) => send({ t: 'difficulty', v: e.target.value });
 $('#startBtn').onclick = () => send({ t: 'start' });
 $('#toLobbyBtn').onclick = () => send({ t: 'toLobby' });
 $('#joinBtn').onclick = connect;
-$('#nameInput').value = settings.name || new URLSearchParams(location.search).get('name') || '';
+const qs = new URLSearchParams(location.search);
+$('#nameInput').value = qs.get('name') || settings.name || '';
+if (qs.get('look') === 'f' || qs.get('look') === 'm') settings.look = qs.get('look');
+// подключение к игре друга: переходим на его сервер, ник и персонажа передаём в адресе
+try { $('#friendInput').value = localStorage.getItem('babka-friend') || ''; } catch { /* приватный режим */ }
+const joinFriend = () => {
+  let a = $('#friendInput').value.trim().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+  if (!a) { $('#friendInput').focus(); return; }
+  if (!/:\d+$/.test(a)) a += ':7777';
+  try { localStorage.setItem('babka-friend', a); } catch { /* приватный режим */ }
+  const name = $('#nameInput').value.trim();
+  location.href = `http://${a}/?name=${encodeURIComponent(name)}&look=${settings.look}`;
+};
+$('#friendBtn').onclick = joinFriend;
+$('#friendInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') joinFriend(); });
 $('#nameInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') connect(); });
 const setLook = (v) => { settings.look = v; saveSettings(); for (const b of document.querySelectorAll('.seg button')) b.classList.toggle('on', b.dataset.look === v); if (phase === 'lobby') send({ t: 'look', v }); else lobby3d?.setPlayers([{ id: -1, name: $('#nameInput').value || 'Внучок', color: '#e74c3c', look: v, ready: false }]); };
 for (const b of document.querySelectorAll('.seg button')) b.onclick = () => setLook(b.dataset.look);
@@ -292,7 +306,7 @@ function upsertItem(it) {
     scene.add(m);
   } else if (it.holder === me.id) {
     m.position.set(0, 0, 0); m.rotation.set(0.35, 0.8, 0.1);
-    const big = it.type === 'fuel' ? 0.55 : it.type === 'crowbar' ? 0.8 : 1.4;
+    const big = { fuel: 0.55, crowbar: 0.75, spray: 0.85, bottle: 0.8, teddy: 0.9, hammer: 0.9, wrench: 1.1, pliers: 1.2 }[it.type] || 1.4;
     m.scale.setScalar(big);
     noShadow(m);
     vmHeld.add(m);
@@ -421,8 +435,8 @@ function hideCam(spotId) {
   const s = map.hides[spotId];
   const c = cellCenter(s.x, s.y), e = cellCenter(s.exit.x, s.exit.y);
   const y0 = s.level * FLOOR_H;
-  const k = { wardrobe: 0.12, bed: 0.35, table: 0.25, bath: 0.1 }[s.type];
-  const h = { wardrobe: 1.5, bed: 0.28, table: 0.5, bath: 0.62 }[s.type];
+  const k = { wardrobe: 0.12, bed: 0.35, table: 0.42, bath: 0.1 }[s.type];
+  const h = { wardrobe: 1.5, bed: 0.28, table: 0.3, bath: 0.62 }[s.type]; // под столом — между ножек стульев
   return { x: c.x + (e.x - c.x) * k, y: y0 + h, z: c.z + (e.z - c.z) * k, yaw: Math.atan2(-(e.x - c.x), -(e.z - c.z)), type: s.type };
 }
 function enterHide(spotId) {
@@ -454,9 +468,19 @@ function showEnd(m) {
 }
 
 // ---------- эффекты ----------
+let puffTex = null;
+function puffTexture() {
+  if (puffTex) return puffTex;
+  const c = document.createElement('canvas'); c.width = c.height = 64;
+  const g = c.getContext('2d'), grd = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  grd.addColorStop(0, 'rgba(255,255,255,1)'); grd.addColorStop(0.4, 'rgba(255,255,255,0.45)'); grd.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = grd; g.fillRect(0, 0, 64, 64);
+  puffTex = new THREE.CanvasTexture(c); puffTex.colorSpace = THREE.SRGBColorSpace;
+  return puffTex;
+}
 function sprayCloud(m) {
   const p = m.id === me.id ? { x: me.x, z: me.z, yaw: me.yaw, y: me.y } : remote.get(m.id) || { x: m.x, z: m.z, yaw: 0, y: (m.lv || 0) * FLOOR_H };
-  const mat = new THREE.SpriteMaterial({ color: 0xffb070, transparent: true, opacity: 0.5, depthWrite: false });
+  const mat = new THREE.SpriteMaterial({ map: puffTexture(), color: 0xffc890, transparent: true, opacity: 0.5, depthWrite: false });
   for (let i = 0; i < 18; i++) {
     const s = new THREE.Sprite(mat.clone());
     const d = 0.3 + i * 0.3, spread = (Math.random() - 0.5) * 0.4;

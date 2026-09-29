@@ -1,0 +1,97 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>art</title>
+<script type="importmap">{ "imports": { "three": "/vendor/three.module.min.js", "three/addons/": "/vendor/addons/" } }</script>
+<style>body{margin:0;background:#000}</style></head>
+<body>
+<script type="module">
+// Рендер иконки и обложки установщика из настоящей 3D-модели бабки (запускает tools/render-art.mjs)
+import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { preloadCharacters, Character } from '/js/characters.js';
+import { createMaterials } from '/js/materials.js';
+
+const q = new URLSearchParams(location.search);
+const kind = q.get('kind') || 'icon';
+const W = Number(q.get('w') || 512), H = Number(q.get('h') || 512);
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+renderer.setSize(W, H); renderer.setPixelRatio(1);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 0.85;
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+const pm = new THREE.PMREMGenerator(renderer);
+scene.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environmentIntensity = 0.15;
+await preloadCharacters();
+const mats = createMaterials();
+const g = new Character('granny');
+scene.add(g.root);
+const st = { speed: 0, angry: !q.get('calm'), lookYaw: kind === 'icon' ? 0.15 : 0.1, lookPitch: kind === 'icon' ? 0.05 : -0.1 };
+if (kind === 'hero') st.action = 'attack';
+// прогон аниматора до нужного кадра
+const at = Number(q.get('t') || (kind === 'hero' ? 0.24 : 1.2));
+for (let t = 0; t < at; t += 1 / 60) g.update(1 / 60, st);
+g.root.updateMatrixWorld(true);
+const head = new THREE.Vector3(); g.rig.bones.head.getWorldPosition(head);
+const cam = new THREE.PerspectiveCamera(kind === 'icon' ? 17 : 34, W / H, 0.05, 50);
+
+if (kind === 'icon') {
+  cam.position.set(head.x + 0.12, head.y - 0.02, head.z - 0.8);
+  cam.lookAt(head.x + 0.015, head.y + 0.005, head.z);
+  const key = new THREE.SpotLight(0xffd6a0, 2.2, 4, 0.5, 0.7, 1.5); key.position.set(head.x - 0.35, head.y - 0.3, head.z - 0.7); key.target.position.copy(head); key.castShadow = true; key.shadow.mapSize.set(1024, 1024); key.shadow.bias = -0.001; scene.add(key, key.target);
+  const rim = new THREE.PointLight(0xff3020, 1.0, 3, 1.5); rim.position.set(head.x + 0.4, head.y + 0.15, head.z + 0.3); rim.castShadow = true; rim.shadow.mapSize.set(1024, 1024); rim.shadow.bias = -0.002; scene.add(rim);
+  const rim2 = new THREE.PointLight(0x6080ff, 0.8, 3, 1.5); rim2.position.set(head.x - 0.4, head.y + 0.25, head.z + 0.3); rim2.castShadow = true; rim2.shadow.mapSize.set(1024, 1024); rim2.shadow.bias = -0.002; scene.add(rim2);
+  scene.add(new THREE.AmbientLight(0x402020, 0.15));
+} else {
+  // тёмный коридор: обои, пол, лампа сверху, фонарик игрока снизу
+  const wallM = mats.wallpaper, floorM = mats.woodfloor;
+  const back = new THREE.Mesh(new THREE.PlaneGeometry(8, 3.2), wallM); back.position.set(0, 1.6, 1.6); back.rotation.y = Math.PI; back.receiveShadow = true; scene.add(back);
+  for (const s of [-1, 1]) { const w = new THREE.Mesh(new THREE.PlaneGeometry(10, 3.2), wallM); w.position.set(s * 1.4, 1.6, -2); w.rotation.y = -s * Math.PI / 2; w.receiveShadow = true; scene.add(w); }
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(4, 12), floorM); floor.rotation.x = -Math.PI / 2; floor.position.z = -2; floor.receiveShadow = true; scene.add(floor);
+  const uvFix = (m, sx, sy) => { const uv = m.geometry.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * sx, uv.getY(i) * sy); };
+  uvFix(back, 8, 3.2); uvFix(floor, 4, 12);
+  scene.children.filter(o => o.isMesh && o.geometry.parameters?.width === 10).forEach(w => uvFix(w, 10, 3.2));
+  const lamp = new THREE.PointLight(0xffb070, 1.6, 5, 1.6); lamp.position.set(0.3, 2.7, 0.9); lamp.castShadow = true; lamp.shadow.mapSize.set(1024, 1024); scene.add(lamp);
+  const torch = new THREE.SpotLight(0xfff0d8, 9, 12, 0.36, 0.6, 1.4); torch.position.set(-0.25, 1.1, -2.6); torch.target.position.set(0, 1.25, 0); torch.castShadow = true; torch.shadow.mapSize.set(2048, 2048); torch.shadow.bias = -0.0004; scene.add(torch, torch.target);
+  const red = new THREE.PointLight(0xff2a10, 1.2, 4, 1.5); red.castShadow = true; red.position.set(0.9, 1.8, 1.2); scene.add(red);
+  scene.fog = new THREE.FogExp2(0x050304, 0.18);
+  scene.background = new THREE.Color(0x050304);
+  cam.position.set(0.25, 0.92, -2.2);
+  cam.lookAt(0.02, 1.1, 0);
+}
+// дождаться текстур
+await new Promise(r => setTimeout(r, 1500));
+renderer.render(scene, cam);
+await new Promise(r => setTimeout(r, 200));
+renderer.render(scene, cam);
+window.__out = renderer.domElement.toDataURL('image/png');
+if (kind === 'icon') {
+  // скруглённый квадрат с тёмно-красным градиентом + рендер + лёгкая рамка
+  const S = 512, c = document.createElement('canvas'); c.width = c.height = S;
+  const x = c.getContext('2d');
+  const R = S * 0.2;
+  const rr = (p) => { x.beginPath(); x.roundRect(p, p, S - 2 * p, S - 2 * p, R - p * 0.6); };
+  rr(8);
+  const grd = x.createRadialGradient(S * 0.5, S * 0.42, S * 0.05, S * 0.5, S * 0.5, S * 0.7);
+  grd.addColorStop(0, '#6a1410'); grd.addColorStop(0.55, '#2a0806'); grd.addColorStop(1, '#0a0203');
+  x.fillStyle = grd; x.fill();
+  x.save(); rr(8); x.clip(); x.drawImage(renderer.domElement, 0, 0, S, S);
+  const vg = x.createRadialGradient(S / 2, S / 2, S * 0.3, S / 2, S / 2, S * 0.75); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.65)');
+  x.fillStyle = vg; x.fillRect(0, 0, S, S); x.restore();
+  rr(9); x.lineWidth = 5; x.strokeStyle = 'rgba(255,120,90,0.35)'; x.stroke();
+  // уменьшение ступенями — чётко на 16/32
+  const out = {};
+  let src = c, cur = S;
+  for (const size of [256, 128, 64, 48, 40, 32, 24, 20, 16]) {
+    while (cur / 2 >= size && cur > size) { const t = document.createElement('canvas'); t.width = t.height = cur / 2; const tx = t.getContext('2d'); tx.imageSmoothingQuality = 'high'; tx.drawImage(src, 0, 0, cur / 2, cur / 2); src = t; cur /= 2; }
+    const t = document.createElement('canvas'); t.width = t.height = size; const tx = t.getContext('2d'); tx.imageSmoothingQuality = 'high'; tx.drawImage(src, 0, 0, size, size);
+    if (size <= 32) { tx.globalCompositeOperation = 'overlay'; tx.globalAlpha = 0.25; tx.drawImage(t, 0, 0); } // чуть контраста на мелких
+    out[size] = t.toDataURL('image/png');
+  }
+  out[512] = c.toDataURL('image/png');
+  window.__icons = out;
+}
+window.__done = true;
+</script>
+</body></html>

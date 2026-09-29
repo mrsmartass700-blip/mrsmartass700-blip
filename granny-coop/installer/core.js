@@ -1,4 +1,4 @@
-// «Бабка Setup Wizard» — ядро установщика (общее для SETUP.bat и BabkaCoop-Setup.exe).
+// Мастер установки «Бабка: Кооп» — ядро (общее для SETUP.bat и BabkaCoop-Setup.exe).
 // Поднимает локальный HTTP-сервер (только 127.0.0.1, с токеном) и открывает интерфейс мастера окном Edge/Chrome.
 // Реальная работа: копирование игры, config.json, иконка, ярлыки, правило брандмауэра,
 // запись в «Программы и компоненты», деинсталлятор.
@@ -11,6 +11,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { spawn, execFile } from 'node:child_process';
 import { grannyRGBA } from './ui/art.js';
+import { openAppWindow, openExternal as openUrl } from '../server/launcher.js';
 
 const IS_WIN = process.platform === 'win32';
 const TOKEN = crypto.randomBytes(12).toString('hex');
@@ -73,21 +74,32 @@ async function ps(script, opts) {
 }
 const psq = (s) => `'${String(s).replace(/'/g, "''")}'`; // строка для PowerShell
 
-function makeIco(sizes = [16, 32, 48, 64]) {
-  const images = sizes.map(size => {
-    const rgba = grannyRGBA(size);
-    const header = Buffer.alloc(40);
-    header.writeUInt32LE(40, 0); header.writeInt32LE(size, 4); header.writeInt32LE(size * 2, 8);
-    header.writeUInt16LE(1, 12); header.writeUInt16LE(32, 14);
-    const maskRow = Math.ceil(size / 32) * 4;
-    header.writeUInt32LE(size * size * 4 + maskRow * size, 20);
-    const pix = Buffer.alloc(size * size * 4);
-    for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
-      const s = ((size - 1 - y) * size + x) * 4, d = (y * size + x) * 4; // BMP снизу вверх, BGRA
-      pix[d] = rgba[s + 2]; pix[d + 1] = rgba[s + 1]; pix[d + 2] = rgba[s]; pix[d + 3] = rgba[s + 3];
-    }
-    return Buffer.concat([header, pix, Buffer.alloc(maskRow * size)]);
-  });
+// ICO: PNG-кадры из отрендеренной 3D-бабки (installer/ui/img/icon-N.png); если их нет — пиксельная бабка (BMP)
+function makeIco(read = readAsset, sizes = [16, 20, 24, 32, 40, 48, 64, 128, 256]) {
+  const pngs = sizes.map(s => read(`installer/ui/img/icon-${s}.png`));
+  if (pngs.every(Boolean)) return icoFrom(sizes, pngs);
+  const avail = sizes.filter((s, i) => pngs[i]);
+  if (avail.length >= 3) return icoFrom(avail, pngs.filter(Boolean));
+  const bmpSizes = [16, 32, 48, 64];
+  return icoFrom(bmpSizes, bmpSizes.map(bmpIcon));
+}
+
+function bmpIcon(size) {
+  const rgba = grannyRGBA(size);
+  const header = Buffer.alloc(40);
+  header.writeUInt32LE(40, 0); header.writeInt32LE(size, 4); header.writeInt32LE(size * 2, 8);
+  header.writeUInt16LE(1, 12); header.writeUInt16LE(32, 14);
+  const maskRow = Math.ceil(size / 32) * 4;
+  header.writeUInt32LE(size * size * 4 + maskRow * size, 20);
+  const pix = Buffer.alloc(size * size * 4);
+  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+    const s = ((size - 1 - y) * size + x) * 4, d = (y * size + x) * 4; // BMP снизу вверх, BGRA
+    pix[d] = rgba[s + 2]; pix[d + 1] = rgba[s + 1]; pix[d + 2] = rgba[s]; pix[d + 3] = rgba[s + 3];
+  }
+  return Buffer.concat([header, pix, Buffer.alloc(maskRow * size)]);
+}
+
+function icoFrom(sizes, images) {
   const dir = Buffer.alloc(6 + 16 * images.length);
   dir.writeUInt16LE(0, 0); dir.writeUInt16LE(1, 2); dir.writeUInt16LE(images.length, 4);
   let offset = dir.length;
@@ -121,6 +133,13 @@ function radminInfo() {
 function defaultDir() {
   if (IS_WIN) return path.join(process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local'), 'BabkaCoop');
   return path.join(os.homedir(), 'BabkaCoop');
+}
+
+// свободное место на диске (ближайшая существующая папка вверх по пути)
+function freeBytes(dir) {
+  let d = path.resolve(dir);
+  for (let i = 0; i < 30 && !fs.existsSync(d); i++) d = path.dirname(d);
+  try { const st = fs.statfsSync(d); return st.bavail * st.bsize; } catch { return null; }
 }
 
 function existingInstall(dir) {
@@ -158,7 +177,7 @@ async function install(opts) {
   const port = Math.min(65535, Math.max(1024, Number(opts.port) || 7777));
   const sys = IS_WIN && !DRY;
   try {
-    await step('prepare', `Готовим жилплощадь: ${dir}`, async () => {
+    await step('prepare', `Подготовка папки: ${dir}`, async () => {
       if (!path.isAbsolute(dir)) throw userErr('Путь должен быть полным (например, C:\\Games\\BabkaCoop)');
       if (MODE === 'tree' && (dir === SRC || dir.startsWith(SRC + path.sep))) throw userErr('Нельзя ставить бабку внутрь установщика. Выберите другую папку.');
       fs.mkdirSync(dir, { recursive: true });
@@ -168,7 +187,7 @@ async function install(opts) {
 
     const files = payloadFiles();
     const total = files.reduce((a, f) => a + f.size, 0);
-    await step('copy', `Переносим бабку (${files.length} ${plural(files.length, 'файл', 'файла', 'файлов')}, ${(total / 1048576).toFixed(1)} МБ)`, async () => {
+    await step('copy', `Копирование файлов игры (${files.length} ${plural(files.length, 'файл', 'файла', 'файлов')}, ${(total / 1048576).toFixed(1)} МБ)`, async () => {
       let done = 0;
       for (const f of files) {
         const to = path.join(dir, f.rel);
@@ -186,7 +205,7 @@ async function install(opts) {
       }
     });
 
-    await step('runtime', 'Вселяем Node.js, чтобы бабка могла бегать', async (s) => {
+    await step('runtime', 'Установка среды выполнения Node.js', async (s) => {
       if (MODE === 'exe') { s.msg = 'Node.js уже встроен в BabkaCoop.exe'; return 'skip'; }
       const src = bundledNode();
       const to = path.join(dir, 'runtime', IS_WIN ? 'node.exe' : 'node');
@@ -197,26 +216,26 @@ async function install(opts) {
       job.progress = 0.62;
     });
 
-    await step('config', 'Записываем бабкины привычки (config.json)', async () => {
+    await step('config', 'Сохранение настроек (config.json)', async () => {
       const cfg = {
         port, difficulty: opts.difficulty || 'normal', playerName: String(opts.playerName || '').slice(0, 16),
         version: VERSION, installedAt: new Date().toISOString(),
       };
       fs.writeFileSync(path.join(dir, 'config.json'), JSON.stringify(cfg, null, 2));
-      fs.writeFileSync(path.join(dir, 'babka.ico'), makeIco());
+      fs.writeFileSync(path.join(dir, 'babka.ico'), makeIco(readAsset));
       job.progress = 0.66;
     });
 
-    await step('uninstaller', 'Кладём деинсталлятор (на всякий случай. бабка против.)', async () => {
+    await step('uninstaller', 'Создание деинсталлятора', async () => {
       const tpl = readAsset('installer/uninstall.ps1').toString('utf8').replace(/^\uFEFF/, '');
       fs.writeFileSync(path.join(dir, 'uninstall.ps1'), '\uFEFF' + tpl.replace(/__PORT__/g, String(port)));
       fs.writeFileSync(path.join(dir, 'UNINSTALL.bat'),
-        '@echo off\r\nchcp 65001 >nul\r\npowershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0uninstall.ps1"\r\n');
+        '@echo off\r\nstart "" powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "%~dp0uninstall.ps1"\r\n');
       job.progress = 0.7;
     });
 
     if (opts.desktop || opts.startMenu) {
-      await step('shortcuts', 'Рисуем ярлыки (бабка позирует для иконки)', async (s) => {
+      await step('shortcuts', 'Создание ярлыков', async (s) => {
         if (!sys) { s.msg = DRY ? 'Пробный режим' : 'Не Windows — ярлыки пропущены'; return 'skip'; }
         const target = path.join(dir, MODE === 'exe' ? EXE_NAME : 'start.bat'), icon = path.join(dir, 'babka.ico');
         // IShellLinkW (Unicode) — WScript.Shell ломается на кириллице в не-русской локали
@@ -254,7 +273,7 @@ public static class BabkaLink {
           New-Item -ItemType Directory -Force -Path $sm | Out-Null
           L (Join-Path $sm ${psq(APP_NAME + '.lnk')}) ${psq(target)} '' 'Кооператив против бабки'
           L (Join-Path $sm 'Открыть порт в брандмауэре.lnk') ${psq(path.join(dir, 'firewall.bat'))} '${port}' 'Если друг не может подключиться'
-          L (Join-Path $sm 'Удалить бабку.lnk') ${psq(path.join(dir, 'UNINSTALL.bat'))} '' 'Она обидится'` : ''}
+          L (Join-Path $sm 'Удалить «Бабка Кооп».lnk') (Join-Path $env:SystemRoot 'System32\\WindowsPowerShell\\v1.0\\powershell.exe') ${psq(`-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "${path.join(dir, 'uninstall.ps1')}"`)} 'Удаление игры'` : ''}
         `;
         await ps(script);
         job.progress = 0.78;
@@ -262,7 +281,7 @@ public static class BabkaLink {
     }
 
     if (opts.firewall) {
-      await step('firewall', `Договариваемся с брандмауэром о порте ${port} (Windows спросит разрешение — жмите «Да»)`, async (s) => {
+      await step('firewall', `Правило брандмауэра для порта ${port} (подтвердите запрос Windows)`, async (s) => {
         if (!sys) { s.msg = DRY ? 'Пробный режим' : 'Не Windows — брандмауэр пропущен'; return 'skip'; }
         const rule = `Babka Coop (TCP ${port})`;
         const cmdline = `/c netsh advfirewall firewall delete rule name="${rule}" >nul 2>&1 & netsh advfirewall firewall add rule name="${rule}" dir=in action=allow protocol=TCP localport=${port} profile=any`;
@@ -276,13 +295,13 @@ public static class BabkaLink {
     }
 
     if (opts.register) {
-      await step('register', 'Прописываем бабку в «Программы и компоненты»', async (s) => {
+      await step('register', 'Регистрация в «Приложениях» Windows', async (s) => {
         if (!sys) { s.msg = DRY ? 'Пробный режим' : 'Не Windows — реестр пропущен'; return 'skip'; }
         const sizeKB = Math.round((total + (fs.existsSync(path.join(dir, 'runtime', 'node.exe')) ? fs.statSync(path.join(dir, 'runtime', 'node.exe')).size : 0)) / 1024);
         const vals = [
-          ['DisplayName', 'REG_SZ', 'Бабка: Кооп'], ['DisplayVersion', 'REG_SZ', VERSION], ['Publisher', 'REG_SZ', 'Бабка и Внуки Inc.'],
+          ['DisplayName', 'REG_SZ', 'Бабка: Кооп'], ['DisplayVersion', 'REG_SZ', VERSION], ['Publisher', 'REG_SZ', 'Бабка и Внуки'],
           ['DisplayIcon', 'REG_SZ', path.join(dir, 'babka.ico')], ['InstallLocation', 'REG_SZ', dir],
-          ['UninstallString', 'REG_SZ', `"${path.join(dir, 'UNINSTALL.bat')}"`], ['Comments', 'REG_SZ', 'Не удаляйте бабку. Она всё помнит.'],
+          ['UninstallString', 'REG_SZ', `powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "${path.join(dir, 'uninstall.ps1')}"`], ['Comments', 'REG_SZ', 'Кооперативный хоррор для LAN и Radmin VPN'],
           ['URLInfoAbout', 'REG_SZ', 'https://www.radmin-vpn.com/ru/'],
           ['NoModify', 'REG_DWORD', '1'], ['NoRepair', 'REG_DWORD', '1'], ['EstimatedSize', 'REG_DWORD', String(sizeKB)],
         ];
@@ -293,7 +312,7 @@ public static class BabkaLink {
 
     job.progress = 1;
     job.done = true;
-    logLine('Установка завершена. Бабка заселилась.', 'ok');
+    logLine('Установка завершена.', 'ok');
   } catch (e) {
     job.error = e.userMessage || String(e.message || e);
     job.done = true;
@@ -305,8 +324,7 @@ public static class BabkaLink {
 // ================= действия после установки =================
 function openExternal(target) {
   if (DRY) { logLine(`(пробный режим) открыть: ${target}`); return; }
-  if (IS_WIN) spawn('cmd.exe', ['/c', `start "" "${target}"`], { detached: true, stdio: 'ignore', windowsHide: true, windowsVerbatimArguments: true }).unref();
-  else spawn(process.platform === 'darwin' ? 'open' : 'xdg-open', [target], { detached: true, stdio: 'ignore' }).on('error', () => {}).unref();
+  openUrl(target);
 }
 
 function launchGame(dir) {
@@ -314,8 +332,8 @@ function launchGame(dir) {
   if (!cfg) throw userErr('Игра не найдена в папке установки');
   if (DRY) { logLine('(пробный режим) запуск игры'); return; }
   if (IS_WIN) {
-    const target = path.join(dir, fs.existsSync(path.join(dir, EXE_NAME)) ? EXE_NAME : 'start.bat');
-    spawn('cmd.exe', ['/c', `start "Бабка: Кооп" "${target}"`], { cwd: dir, detached: true, stdio: 'ignore', windowsVerbatimArguments: true }).unref();
+    if (fs.existsSync(path.join(dir, EXE_NAME))) spawn(path.join(dir, EXE_NAME), [], { cwd: dir, detached: true, stdio: 'ignore' }).unref();
+    else spawn('cmd.exe', ['/c', 'start "Бабка: Кооп" "start.bat"'], { cwd: dir, detached: true, stdio: 'ignore', windowsVerbatimArguments: true }).unref();
   } else if (fs.existsSync(path.join(dir, EXE_NAME.replace('.exe', '')))) {
     spawn(path.join(dir, EXE_NAME.replace('.exe', '')), [], { cwd: dir, detached: true, stdio: 'ignore' }).unref();
   } else {
@@ -338,7 +356,7 @@ async function browseFolder(current) {
 }
 
 // ================= HTTP =================
-const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.ico': 'image/x-icon' };
+const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.ico': 'image/x-icon', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml' };
 let lastPing = Date.now();
 
 function body(req) {
@@ -369,7 +387,7 @@ const server = http.createServer(async (req, res) => {
             user: os.userInfo().username, host: os.hostname(),
             ramGB: Math.round(os.totalmem() / 1073741824), cpus: os.cpus().length, cpuModel: (os.cpus()[0]?.model || '').trim(),
             node: process.version, version: VERSION,
-            defaultDir: dir, existing: existingInstall(dir),
+            defaultDir: dir, existing: existingInstall(dir), free: freeBytes(dir), dryHint: DRY,
             radmin: radminInfo(),
             sizeBytes: files.reduce((a, f) => a + f.size, 0) + nodeSize, fileCount: files.length,
           });
@@ -377,7 +395,7 @@ const server = http.createServer(async (req, res) => {
         case '/api/check-dir': {
           const b = await body(req);
           const dir = path.resolve(String(b.dir || ''));
-          return json(res, 200, { dir, exists: fs.existsSync(dir), existing: existingInstall(dir), absolute: path.isAbsolute(String(b.dir || '')) });
+          return json(res, 200, { dir, exists: fs.existsSync(dir), existing: existingInstall(dir), absolute: path.isAbsolute(String(b.dir || '')), free: path.isAbsolute(String(b.dir || '')) ? freeBytes(dir) : null });
         }
         case '/api/browse': { const b = await body(req); return json(res, 200, { dir: await browseFolder(b.dir) }); }
         case '/api/install': {
@@ -402,24 +420,13 @@ const server = http.createServer(async (req, res) => {
     return json(res, 404, { error: 'not found' });
   }
   let rel = url.pathname === '/' ? '/index.html' : url.pathname;
-  if (rel === '/favicon.ico') { res.writeHead(200, { 'Content-Type': 'image/x-icon' }); res.end(makeIco([16, 32])); return; }
+  if (rel === '/favicon.ico') { res.writeHead(200, { 'Content-Type': 'image/x-icon' }); res.end(makeIco(readAsset, [16, 32, 48])); return; }
   const clean = path.posix.normalize(rel);
   const data = !clean.includes('..') && readAsset('installer/ui' + clean);
   if (!data) { res.writeHead(404); res.end('404'); return; }
   res.writeHead(200, { 'Content-Type': MIME[path.extname(clean)] || 'application/octet-stream', 'Cache-Control': 'no-store' });
   res.end(data);
 });
-
-function findBrowserApp() {
-  if (!IS_WIN) return null;
-  const pf = [process.env['ProgramFiles(x86)'], process.env.ProgramFiles, process.env.LOCALAPPDATA].filter(Boolean);
-  const cands = [];
-  for (const base of pf) {
-    cands.push(path.join(base, 'Microsoft', 'Edge', 'Application', 'msedge.exe'));
-    cands.push(path.join(base, 'Google', 'Chrome', 'Application', 'chrome.exe'));
-  }
-  return cands.find(p => fs.existsSync(p)) || null;
-}
 
 // opts: { mode, srcRoot, readAsset, version, dry, noOpen, port }
 export function runInstaller(opts) {
@@ -434,14 +441,10 @@ export function runInstaller(opts) {
 function onListen() {
   const port = server.address().port;
   const url = `http://127.0.0.1:${port}/?t=${TOKEN}`;
-  console.log(`\n  Бабка Setup Wizard запущен: ${url}\n  (это окно можно свернуть; закроется само после установки)\n`);
+  console.log(`\n  Мастер установки запущен: ${url}\n  (это окно можно свернуть; закроется само после установки)\n`);
   if (!NO_OPEN) {
-    const app = findBrowserApp();
-    if (app) {
-      const profile = path.join(os.tmpdir(), 'babka-setup-profile');
-      spawn(app, [`--app=${url}`, '--window-size=900,700', `--user-data-dir=${profile}`, '--no-first-run', '--no-default-browser-check'],
-        { detached: true, stdio: 'ignore' }).unref();
-    } else openExternal(url);
+    // окно мастера закрыли крестиком — выходим (если не идёт установка)
+    openAppWindow(url, { profile: 'setup', width: 1060, height: 720, onClose: () => { if (!job.running) process.exit(0); } });
   }
   // если окно мастера закрыли — выходим (интерфейс пингует каждые 3 сек)
   setInterval(() => { if (!job.running && Date.now() - lastPing > 45000) { console.log('Окно установщика закрыто. Выход.'); process.exit(0); } }, 5000);

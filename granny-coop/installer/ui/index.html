@@ -3,193 +3,138 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Установка — Бабка: Кооп</title>
+  <title>Установка «Бабка: Кооп»</title>
+  <link rel="icon" href="img/icon-32.png" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-<div id="desktop">
-  <!-- ярлыки «рабочего стола» для атмосферы -->
-  <div class="icons">
-    <div class="dicon" data-joke="computer"><span>🖥️</span>Мой компьютер</div>
-    <div class="dicon" data-joke="trash"><span>🗑️</span>Корзина</div>
-    <div class="dicon" data-joke="pies"><span>🥧</span>Пирожки.txt</div>
-  </div>
+<div id="app">
+  <!-- левая колонка: обложка, логотип, шаги -->
+  <aside id="side">
+    <div class="hero"><img src="img/hero.jpg" alt="" /></div>
+    <div class="brand">
+      <img class="logo-ico" src="img/icon-64.png" alt="" />
+      <div><b>БАБКА</b><span>КООП</span></div>
+    </div>
+    <ol id="steps">
+      <li data-step="welcome">Приветствие</li>
+      <li data-step="license">Лицензия</li>
+      <li data-step="options">Параметры</li>
+      <li data-step="install">Установка</li>
+      <li data-step="finish">Готово</li>
+    </ol>
+    <p class="ver" id="ver"></p>
+  </aside>
 
-  <div class="window" id="win">
-    <div class="titlebar" id="titlebar">
-      <canvas class="ticon" id="ticon" width="16" height="16"></canvas>
-      <span class="wtitle">Установка — Бабка: Кооп</span>
-      <div class="tbtns">
-        <button id="bMin" title="Свернуть">_</button><button id="bMax" title="Развернуть">□</button><button id="bClose" title="Закрыть">×</button>
+  <main id="main">
+    <!-- 1. приветствие -->
+    <section class="page" data-page="welcome">
+      <p class="kicker">Мастер установки</p>
+      <h1>Добро пожаловать в дом бабки</h1>
+      <p class="lead">Кооперативный хоррор на двоих: пять дней, чтобы выбраться из старого трёхэтажного дома, пока хозяйка не услышала ваши шаги.</p>
+      <ul class="features">
+        <li><i class="ic ic-coop"></i><div><b>Кооператив 2–4 игрока</b><span>По локальной сети или через Radmin VPN — друг подключается из браузера</span></div></li>
+        <li><i class="ic ic-house"></i><div><b>Три этажа, 24 комнаты</b><span>Подвал с канализацией, гараж с машиной, чердачная тишина второго этажа</span></div></li>
+        <li><i class="ic ic-door"></i><div><b>Три пути наружу</b><span>Входная дверь, машина или решётка в подвале — выбирайте сами</span></div></li>
+        <li><i class="ic ic-hide"></i><div><b>Прятки</b><span>Шкафы, кровати, ванна и столы — бабка проверяет не всё</span></div></li>
+      </ul>
+      <div class="notice" id="existingBox" hidden></div>
+      <div class="sysinfo" id="sysinfo"></div>
+    </section>
+
+    <!-- 2. лицензия -->
+    <section class="page" data-page="license">
+      <p class="kicker">Шаг 2 из 4</p>
+      <h2>Лицензионное соглашение</h2>
+      <p class="muted">Прочитайте условия использования. Кнопка «Принимаю» станет доступна, когда вы прокрутите текст до конца.</p>
+      <div class="eula" id="eula" tabindex="0"></div>
+      <label class="check" id="eulaLabel"><input type="checkbox" id="eulaOk" disabled /><span class="box"></span> Я принимаю условия лицензионного соглашения</label>
+    </section>
+
+    <!-- 3. параметры -->
+    <section class="page" data-page="options">
+      <p class="kicker">Шаг 3 из 4</p>
+      <h2>Параметры установки</h2>
+      <div class="field">
+        <label for="dirInput">Папка установки</label>
+        <div class="row"><input id="dirInput" spellcheck="false" /><button class="btn ghost" id="browseBtn">Обзор…</button></div>
+        <div class="disk"><span id="needSpace"></span><span id="freeSpace"></span></div>
+        <p class="err" id="dirErr"></p>
       </div>
-    </div>
-    <div class="menubar"><span data-menu="file"><u>Ф</u>айл</span><span data-menu="granny"><u>Б</u>абка</span><span data-menu="help"><u>С</u>правка</span></div>
+      <div class="grid2">
+        <div class="field">
+          <label for="nameInput">Ник в игре</label>
+          <input id="nameInput" maxlength="16" placeholder="Внучок" />
+        </div>
+        <div class="field">
+          <label for="portInput">Порт сервера</label>
+          <input id="portInput" type="number" min="1024" max="65535" value="7777" />
+        </div>
+      </div>
+      <div class="field">
+        <label>Сложность по умолчанию <small>(хост может сменить в лобби)</small></label>
+        <div class="seg" id="diffSeg">
+          <button data-v="easy">Лёгкая</button><button data-v="normal" class="on">Обычная</button><button data-v="hard">Сложная</button><button data-v="nightmare">Кошмар</button>
+        </div>
+        <p class="hint" id="diffHint"></p>
+      </div>
+      <div class="field">
+        <label>Дополнительно</label>
+        <div class="toggles" id="toggles"></div>
+      </div>
+    </section>
 
-    <div class="body">
-      <aside class="side" id="side">
-        <div class="sidetitle">БАБКА<small>Setup Wizard 98</small></div>
-        <canvas id="sideGranny"></canvas>
-        <div class="bubble" id="bubble">Проходи, внучок.</div>
-        <ol class="steps" id="stepList"></ol>
-      </aside>
+    <!-- 4. установка -->
+    <section class="page" data-page="install">
+      <p class="kicker">Шаг 4 из 4</p>
+      <h2 id="instTitle">Установка…</h2>
+      <div class="slides" id="slides"><div class="slide-cap" id="slideCap"></div></div>
+      <div class="prog">
+        <div class="prog-top"><span id="action">Подготовка…</span><span id="pct">0%</span></div>
+        <div class="bar"><i id="fill"></i></div>
+        <div class="prog-bot"><span id="elapsed"></span><button class="link" id="logToggle">Подробнее</button></div>
+      </div>
+      <div class="log" id="log" hidden></div>
+      <div class="notice error" id="instErr" hidden></div>
+    </section>
 
-      <main class="content">
-        <!-- 1. Приветствие -->
-        <section class="page" data-page="welcome">
-          <h1>Вас приветствует мастер установки «Бабка: Кооп»</h1>
-          <p>Эта программа установит на ваш компьютер кооперативный хоррор, в котором вы с другом пытаетесь сбежать из дома бабки за 5 дней.</p>
-          <p>Мастер сделает всё сам: перенесёт игру, поселит в неё Node.js, нарисует ярлыки, договорится с брандмауэром, чтобы друг смог зайти к вам по <b>Radmin VPN</b>, и даже оставит деинсталлятор (бабка против).</p>
-          <div class="box warn" id="existingBox" hidden></div>
-          <p>Перед продолжением рекомендуется закрыть все остальные программы. Особенно те, что шумят.</p>
-          <p class="muted">Нажмите «Далее», чтобы продолжить, или «Отмена», чтобы расстроить бабку.</p>
-        </section>
+    <!-- 5. готово -->
+    <section class="page" data-page="finish">
+      <div class="done-ico"><svg viewBox="0 0 52 52"><circle cx="26" cy="26" r="24" /><path d="M15 27l7 7 15-16" /></svg></div>
+      <h1>«Бабка: Кооп» установлена</h1>
+      <p class="lead" id="finText"></p>
+      <div class="notice warn" id="finWarn" hidden></div>
+      <div class="guide" id="guide">
+        <h3>Как играть с другом</h3>
+        <ol>
+          <li>Оба ставите <a href="#" data-open="radmin">Radmin VPN</a> и входите в одну сеть: один создаёт, второй присоединяется.</li>
+          <li>Хост запускает игру — в лобби показан адрес вида <code id="addrHint">http://26.x.x.x:7777</code>.</li>
+          <li>Друг открывает этот адрес в браузере (или в своей копии игры: «Подключиться к другу»).</li>
+        </ol>
+      </div>
+      <label class="check"><input type="checkbox" id="finLaunch" checked /><span class="box"></span> Запустить игру</label>
+      <label class="check"><input type="checkbox" id="finFolder" /><span class="box"></span> Открыть папку с игрой</label>
+      <label class="check"><input type="checkbox" id="finCall" /><span class="box"></span> Позвонить своей бабушке</label>
+    </section>
 
-        <!-- 2. Лицензия -->
-        <section class="page" data-page="license">
-          <h2>Лицензионное соглашение</h2>
-          <p class="muted">Пожалуйста, прочитайте соглашение. Бабка проверит. Прокрутите до конца, чтобы продолжить.</p>
-          <div class="eula" id="eula" tabindex="0"></div>
-          <div class="radios" id="eulaRadios">
-            <label><input type="radio" name="eula" value="yes" id="eulaYes" disabled /> Я принимаю условия соглашения <small id="eulaHint">(сначала прокрутите до конца)</small></label>
-            <label class="runaway" id="eulaNoWrap"><input type="radio" name="eula" value="no" id="eulaNo" /> Я не принимаю условия соглашения</label>
-          </div>
-        </section>
+    <footer id="foot">
+      <span class="foot-note" id="footNote">Бабка спит. Устанавливайте тихо.</span>
+      <button class="btn ghost" id="back">Назад</button>
+      <button class="btn" id="next">Далее</button>
+      <button class="btn ghost" id="cancel">Отмена</button>
+    </footer>
+  </main>
+</div>
 
-        <!-- 3. Проверка системы -->
-        <section class="page" data-page="check">
-          <h2>Проверка компьютера на готовность к бабке</h2>
-          <p class="muted">Мастер изучает ваш компьютер. Ничего никуда не отправляется — бабка не умеет пользоваться интернетом.</p>
-          <ul class="checks" id="checks"></ul>
-          <div class="box" id="radminBox" hidden></div>
-        </section>
-
-        <!-- 4. Компоненты -->
-        <section class="page" data-page="components">
-          <h2>Выбор компонентов</h2>
-          <p class="muted">Отметьте, что установить. Наведите на пункт — появится описание.</p>
-          <div class="comp-wrap">
-            <ul class="tree" id="compList"></ul>
-            <div class="desc"><b>Описание</b><p id="compDesc">Наведите указатель на компонент.</p></div>
-          </div>
-          <p class="space">Требуется места на диске: <b id="spaceNeed">…</b></p>
-        </section>
-
-        <!-- 5. Папка / порт / ник -->
-        <section class="page" data-page="location">
-          <h2>Куда поселить бабку?</h2>
-          <label class="lbl">Папка установки</label>
-          <div class="row"><input id="dirInput" class="field grow" spellcheck="false" /><button class="btn" id="browseBtn">Обзор…</button></div>
-          <p class="note" id="dirNote"></p>
-          <div class="two">
-            <div>
-              <label class="lbl">Порт сервера (для друга)</label>
-              <input id="portInput" class="field" type="number" min="1024" max="65535" value="7777" />
-              <p class="note">Друг подключится по адресу <code id="addrPreview">http://26.x.x.x:7777</code></p>
-            </div>
-            <div>
-              <label class="lbl">Ваш ник в игре</label>
-              <input id="nameInput" class="field" maxlength="16" />
-              <p class="note">Бабка будет кричать его, когда найдёт вас. (Нет, не будет.)</p>
-            </div>
-          </div>
-        </section>
-
-        <!-- 6. Уровень страха -->
-        <section class="page" data-page="fear">
-          <h2>Настройка уровня страха</h2>
-          <p class="muted">Это сложность по умолчанию. Хост всегда может поменять её в лобби.</p>
-          <div class="fear">
-            <canvas id="fearGranny"></canvas>
-            <div class="fear-right">
-              <input type="range" id="fearRange" min="0" max="4" step="1" value="2" />
-              <div class="ticks"><span>😴</span><span>🙂</span><span>😠</span><span>😡</span><span>💀</span></div>
-              <h3 id="fearName"></h3>
-              <p id="fearDesc"></p>
-            </div>
-          </div>
-        </section>
-
-        <!-- 7. Итог -->
-        <section class="page" data-page="summary">
-          <h2>Всё готово к установке</h2>
-          <p class="muted">Проверьте настройки. Нажмите «Установить», и бабка начнёт заселяться.</p>
-          <pre class="summary" id="summary"></pre>
-        </section>
-
-        <!-- 8. Установка -->
-        <section class="page" data-page="install">
-          <h2>Установка…</h2>
-          <p class="action" id="action">Подготовка…</p>
-          <div class="progress" id="progress"><div class="fill" id="fill"></div><canvas id="walker" width="32" height="32"></canvas></div>
-          <p class="pct"><span id="pct">0</span>%</p>
-          <details open><summary>Подробности</summary><div class="log" id="log"></div></details>
-          <div class="event" id="event" hidden>
-            <b>⚠ БАБКА УСЛЫШАЛА ШУМ УСТАНОВКИ!</b>
-            <p>Не двигайте мышь <span id="evCount">3</span>…</p>
-            <p class="muted">…или нажмите <kbd>Пробел</kbd>, чтобы спрятаться под кровать.</p>
-          </div>
-        </section>
-
-        <!-- 9. Конец -->
-        <section class="page" data-page="finish">
-          <h1 id="finTitle">Установка завершена!</h1>
-          <p id="finText">Бабка заселилась. Теперь она живёт у вас.</p>
-          <div class="box" id="finWarn" hidden></div>
-          <label class="chk"><input type="checkbox" id="finLaunch" checked /> Запустить «Бабка: Кооп»</label>
-          <label class="chk"><input type="checkbox" id="finGuide" checked /> Показать, как играть с другом по Radmin VPN</label>
-          <label class="chk"><input type="checkbox" id="finCall" /> Позвонить бабушке (настоящей)</label>
-          <p class="muted">Совет: второй игрок игру не устанавливает — ему достаточно браузера и Radmin VPN.</p>
-        </section>
-      </main>
-    </div>
-
-    <div class="footer">
-      <span class="brand">Бабка Installer System™ v98.7</span>
-      <button class="btn" id="back">&lt; Назад</button><button class="btn primary" id="next">Далее &gt;</button><button class="btn" id="cancel">Отмена</button>
-    </div>
-  </div>
-
-  <!-- заставка -->
-  <div id="splash">
-    <canvas id="splashGranny"></canvas>
-    <h1>БАБКА<span>Setup Wizard 98</span></h1>
-    <div class="sbar"><div id="sfill"></div></div>
-    <p id="smsg">Загрузка бабки…</p>
-    <p class="muted">© 1998–2026 Бабка и Внуки Inc. Все тапки защищены.</p>
-  </div>
-
-  <!-- диалог -->
-  <div id="modalBack" hidden>
-    <div class="window dialog" id="modal">
-      <div class="titlebar"><span class="wtitle" id="mTitle">Бабка</span><div class="tbtns"><button id="mClose">×</button></div></div>
-      <div class="dbody"><span class="dicon-big" id="mIcon">⚠️</span><div id="mText"></div></div>
-      <div class="dbtns" id="mBtns"></div>
-    </div>
-  </div>
-
-  <!-- «скример» (добрый) -->
-  <div id="scare" hidden><canvas id="scareGranny"></canvas><b>ПОПАЛСЯ!</b></div>
-
-  <!-- меню «Пуск» -->
-  <div id="startMenu" hidden>
-    <div class="sm-side">Бабка<b>98</b></div>
-    <ul>
-      <li data-joke="programs">📁 Программы</li>
-      <li data-joke="docs">📄 Документы бабки</li>
-      <li data-joke="settings">⚙️ Настройка тапок</li>
-      <li data-joke="find">🔍 Найти ключи…</li>
-      <li data-joke="run">▶️ Выполнить… (от бабки)</li>
-      <li class="sep"></li>
-      <li data-joke="shutdown">⏻ Завершение работы бабки…</li>
-    </ul>
-  </div>
-
-  <div id="taskbar">
-    <button id="startBtn"><b>🪟 Пуск</b></button>
-    <button class="task active" id="taskBtn">🧓 Установка — Бабка</button>
-    <span class="tray"><button id="musicBtn" title="Музыка">🔊</button><span id="clock"></span></span>
+<div id="modalBack" hidden>
+  <div id="modal" role="dialog">
+    <h3 id="mTitle"></h3>
+    <p id="mText"></p>
+    <div id="mBtns"></div>
   </div>
 </div>
+
+<div id="bye" hidden><img src="img/icon-128.png" alt="" /><p id="byeText">Можно закрыть это окно.</p></div>
 <script type="module" src="app.js"></script>
 </body>
 </html>

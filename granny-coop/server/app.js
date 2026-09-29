@@ -3,14 +3,14 @@ import http from 'node:http';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { exec } from 'node:child_process';
+import { openExternal } from './launcher.js';
 import { attachWebSocket } from './ws.js';
 import { Game } from './game.js';
 import { DIFFICULTIES } from '../shared/map.js';
 
 export const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
-  '.json': 'application/json', '.png': 'image/png', '.svg': 'image/svg+xml', '.ico': 'image/x-icon', '.txt': 'text/plain; charset=utf-8',
+  '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.glb': 'model/gltf-binary', '.svg': 'image/svg+xml', '.ico': 'image/x-icon', '.txt': 'text/plain; charset=utf-8',
 };
 
 // assets.read('public/index.html') -> Buffer | null
@@ -60,7 +60,13 @@ export function startServer({ port = 7777, config = {}, assets, openBrowser = tr
   const addresses = listAddresses();
   const game = new Game({ addresses, port });
   if (config.difficulty && DIFFICULTIES[config.difficulty]) game.difficulty = config.difficulty;
-  attachWebSocket(server, '/ws', (ws) => game.onConnection(ws));
+  // счётчик подключений — exe закрывается сам, когда все ушли (см. exe/entry.js)
+  const conn = { count: 0, lastChange: Date.now(), ever: false };
+  attachWebSocket(server, '/ws', (ws) => {
+    conn.count++; conn.ever = true; conn.lastChange = Date.now();
+    ws.on('close', () => { conn.count--; conn.lastChange = Date.now(); });
+    game.onConnection(ws);
+  });
 
   return new Promise((resolve, reject) => {
     server.on('error', (e) => {
@@ -76,12 +82,9 @@ export function startServer({ port = 7777, config = {}, assets, openBrowser = tr
       else log('  [!] Адрес Radmin VPN (26.x.x.x) не найден. Запустите Radmin VPN и войдите в сеть.');
       for (const a of addresses.filter(a => !a.radmin)) log(`  Другие сети (${a.name}): http://${a.address}:${port}`);
       log(`${line}\n  Не закрывайте это окно, пока идёт игра. Ctrl+C — остановить.\n`);
-      if (openBrowser) {
-        const u = `http://localhost:${port}/${config.playerName ? `?name=${encodeURIComponent(config.playerName)}` : ''}`;
-        const cmd = process.platform === 'win32' ? `start "" "${u}"` : process.platform === 'darwin' ? `open "${u}"` : `xdg-open "${u}"`;
-        exec(cmd, () => {});
-      }
-      resolve({ server, game, port, addresses, stop() { game.stop(); server.close(); } });
+      const url = `http://localhost:${port}/${config.playerName ? `?name=${encodeURIComponent(config.playerName)}` : ''}`;
+      if (openBrowser) openExternal(url);
+      resolve({ server, game, port, addresses, url, conn, stop() { game.stop(); server.close(); } });
     });
   });
 }

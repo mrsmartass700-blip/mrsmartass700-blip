@@ -1,7 +1,7 @@
-﻿# Бабка Setup Wizard — загрузчик. Проверяет Node.js (или качает портативный) и открывает мастер установки.
+﻿# Бабка: Кооп — загрузчик установки. Проверяет Node.js (или качает портативный) и открывает мастер установки.
 $ErrorActionPreference = 'Stop'
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-$Host.UI.RawUI.WindowTitle = 'Бабка Setup Wizard — загрузчик'
+$Host.UI.RawUI.WindowTitle = 'Бабка: Кооп — загрузчик установки'
 $here = $PSScriptRoot
 $root = Split-Path -Parent $here
 $runtime = Join-Path $root 'runtime'

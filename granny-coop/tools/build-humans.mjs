@@ -722,7 +722,7 @@ function buildCharacter(name, cfg) {
       if (sk.old) {
         const rx = (p[0] - (e[0] + side * 0.021)) * side, ry = p[1] - (e[1] + 0.001), rr = Math.hypot(rx, ry);
         const fan = smooth(-0.004, 0.003, rx) * smooth(0.024, 0.006, rr) * Math.pow(Math.abs(Math.sin(Math.atan2(ry, rx) * 7 + fine)), 10);
-        hh -= fan * 1.1 * front;
+        hh -= fan * 0.5 * front;
         const bag = smooth(0.0035, 0, Math.abs(by + 0.017 - Math.abs(ex) * 0.2)) * smooth(0.021, 0.011, Math.abs(ex)) * eyeFront;
         hh -= bag * 1.0;
         c = mixc(c, [c[0] * 0.82, c[1] * 0.72, c[2] * 0.74], bag * 0.3);
@@ -739,8 +739,8 @@ function buildCharacter(name, cfg) {
       for (const side of [1, -1]) {
         const a = [noseTip[0] + side * 0.017, noseTip[1] - 0.008, noseTip[2] - 0.014], b = [mouth[0] + side * 0.031, mouth[1] - 0.014, mouth[2] - 0.006];
         const d = segDist(p, a, b);
-        hh -= smooth(0.0045, 0, d) * 1.6 * front;
-        c = mixc(c, [c[0] * 0.86, c[1] * 0.76, c[2] * 0.76], smooth(0.006, 0, d) * 0.22 * front);
+        hh -= smooth(0.004, 0, d) * 0.9 * front;
+        c = mixc(c, [c[0] * 0.9, c[1] * 0.84, c[2] * 0.84], smooth(0.005, 0, d) * 0.08 * front);
         // «брыли»
         const j = segDist(p, [mouth[0] + side * 0.033, mouth[1] - 0.012, mouth[2] - 0.01], [mouth[0] + side * 0.04, jawY + 0.005, mouth[2] - 0.025]);
         hh -= smooth(0.004, 0, j) * 0.9 * front;
