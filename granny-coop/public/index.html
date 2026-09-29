@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Бабка: Кооп</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E👵%3C/text%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="style.css" />
+  <script type="importmap">{ "imports": { "three": "/vendor/three.module.min.js" } }</script>
+</head>
+<body>
+  <div id="view"></div>
+
+  <!-- ===== Главное меню ===== -->
+  <section id="menu" class="screen show">
+    <div class="panel">
+      <h1 class="title">БАБКА<span>КООП</span></h1>
+      <p class="sub">Вдвоём против бабки. 5 дней, чтобы выбраться из дома.</p>
+      <label class="field">Твой ник
+        <input id="nameInput" maxlength="16" placeholder="Внучок" autocomplete="off" />
+      </label>
+      <button id="joinBtn" class="btn big">Войти в дом</button>
+      <p id="menuMsg" class="msg"></p>
+      <details class="help">
+        <summary>Как играть по Radmin VPN</summary>
+        <ol>
+          <li>Оба ставите <b>Radmin VPN</b> и заходите в одну сеть (один создаёт, второй присоединяется).</li>
+          <li>Хост запускает <b>start.bat</b> — откроется игра, а в лобби будет адрес вида <code>http://26.x.x.x:7777</code>.</li>
+          <li>Друг открывает этот адрес в браузере (Chrome/Edge/Firefox). Всё — вы в одном доме.</li>
+          <li>Если друг не может подключиться — у хоста запустите <b>firewall.bat</b> (от администратора).</li>
+        </ol>
+      </details>
+    </div>
+  </section>
+
+  <!-- ===== Лобби ===== -->
+  <section id="lobby" class="screen">
+    <div class="panel wide">
+      <h2>Лобби</h2>
+      <div class="lobby-grid">
+        <div>
+          <h3>Игроки <small id="playerCount"></small></h3>
+          <ul id="playerList" class="players"></ul>
+          <button id="readyBtn" class="btn">Я готов</button>
+        </div>
+        <div>
+          <h3>Сложность</h3>
+          <select id="diffSelect"></select>
+          <p class="hint" id="diffHint">Меняет только хост.</p>
+          <h3>Позвать друга</h3>
+          <div id="addrBox" class="addr"></div>
+          <button id="startBtn" class="btn big">Начать игру</button>
+          <p class="hint" id="startHint"></p>
+        </div>
+      </div>
+      <div class="controls">
+        <b>Управление:</b> WASD — ходить · Shift — бег · C/Ctrl — присесть · E — действие · G — положить · Q — бросить (шум!) ·
+        ЛКМ — применить (баллончик) · F — фонарик · Z — метка для друга · T — чат · Tab — задачи · Esc — пауза
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== HUD ===== -->
+  <section id="hud">
+    <div id="crosshair"></div>
+    <div id="prompt"></div>
+    <div id="dayBox">ДЕНЬ <b id="dayNum">1</b>/<span id="dayMax">5</span></div>
+    <div id="objectives"></div>
+    <div id="held"><span id="heldName"></span><small id="heldHint"></small></div>
+    <div id="staminaBar"><i></i></div>
+    <div id="feed"></div>
+    <div id="chatLog"></div>
+    <input id="chatInput" maxlength="200" placeholder="Сообщение… (Enter — отправить, Esc — отмена)" autocomplete="off" />
+    <div id="hideOverlay"></div>
+    <div id="trapOverlay">КАПКАН! Не можешь двигаться…</div>
+    <div id="netInfo"></div>
+    <div id="dangerVignette"></div>
+  </section>
+
+  <!-- ===== Клик для управления ===== -->
+  <section id="clickToPlay" class="screen">
+    <div class="panel small">
+      <h2>Пауза</h2>
+      <p class="hint">Игра продолжается для остальных! Бабка не ждёт.</p>
+      <button id="resumeBtn" class="btn big">Продолжить</button>
+      <label class="field">Чувствительность мыши <input id="sensInput" type="range" min="0.2" max="3" step="0.05" /></label>
+      <label class="field">Громкость <input id="volInput" type="range" min="0" max="1" step="0.05" /></label>
+      <label class="field">Поле зрения (FOV) <input id="fovInput" type="range" min="60" max="100" step="1" /></label>
+      <button id="leaveBtn" class="btn ghost">Выйти в меню</button>
+    </div>
+  </section>
+
+  <!-- ===== Затемнение (поймали / день) ===== -->
+  <section id="fade"><div id="fadeText"></div><div id="fadeSub"></div></section>
+
+  <!-- ===== Конец игры ===== -->
+  <section id="end" class="screen">
+    <div class="panel">
+      <h1 id="endTitle" class="title"></h1>
+      <p id="endText" class="sub"></p>
+      <ul id="endStats" class="players"></ul>
+      <button id="toLobbyBtn" class="btn big">В лобби</button>
+      <p class="hint" id="endHint"></p>
+    </div>
+  </section>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

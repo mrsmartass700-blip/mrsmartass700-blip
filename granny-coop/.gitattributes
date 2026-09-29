@@ -1,0 +1,3 @@
+# Windows-скрипты храним как есть: CRLF и BOM важны для cmd и PowerShell 5.1
+*.bat -text
+*.ps1 -text

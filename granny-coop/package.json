@@ -1,0 +1,15 @@
+{
+  "name": "babka-coop",
+  "version": "1.0.0",
+  "description": "Кооперативный хоррор в стиле Granny: 2 игрока против бабки, мультиплеер по LAN / Radmin VPN",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "node server/index.js",
+    "test": "node test/sim.js && node test/installer-smoke.js",
+    "setup": "node installer/installer.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
