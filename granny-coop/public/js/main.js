@@ -21,6 +21,8 @@ const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'hi
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
 renderer.setSize(innerWidth, innerHeight);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 $('#view').appendChild(renderer.domElement);
 const camera = new THREE.PerspectiveCamera(settings.fov, innerWidth / innerHeight, 0.05, 60);
 camera.rotation.order = 'YXZ';
@@ -33,7 +35,13 @@ let scene = null, W = null; // W — текущий мир (после start)
 
 // фонарик игрока
 const flashlight = new THREE.SpotLight(0xfff1d6, 11, 20, 0.5, 0.55, 1.0);
-flashlight.position.set(0.15, -0.1, 0);
+flashlight.position.set(0.18, -0.12, 0.05);
+flashlight.castShadow = true;
+flashlight.shadow.mapSize.set(1024, 1024);
+flashlight.shadow.camera.near = 0.15;
+flashlight.shadow.camera.far = 20;
+flashlight.shadow.bias = -0.0006;
+flashlight.shadow.normalBias = 0.02;
 flashlight.target.position.set(0, -0.15, -1);
 camera.add(flashlight, flashlight.target);
 const viewModel = new THREE.Group();
@@ -198,7 +206,7 @@ function startWorld(w) {
   world.setCreaky(w.creaky);
   for (const it of w.items) upsertItem(it);
   for (const t of w.traps) addTrap(t);
-  if (w.ai) { granny = createGranny(); scene.add(granny); }
+  if (w.ai) { granny = createGranny(); granny.traverse(o => { if (o.isMesh) o.castShadow = true; }); scene.add(granny); }
 
   Object.assign(me, { x: w.you.x, z: w.you.z, yaw: w.you.yaw, pitch: 0, hidden: null, state: 'alive', held: null, trappedUntil: 0, stamina: 1 });
   phase = 'playing';
@@ -479,6 +487,7 @@ function onSnap(m) {
     let r = remote.get(p.id);
     if (!r) {
       const model = createPlayerModel(nameOf(p.id), colorOf(p.id));
+      model.traverse(o => { if (o.isMesh) o.castShadow = true; });
       const light = new THREE.SpotLight(0xfff1d6, 8, 16, 0.5, 0.6, 1.0);
       model.add(light, light.target);
       scene.add(model);
@@ -762,6 +771,18 @@ function updateGranny(dt) {
   const inten = me.state !== 'alive' ? 0 : Math.max(0, 1 - d / 11) * (chase ? 1 : 0.6) + (chase && d < 18 ? 0.3 : 0);
   sound.update(dt, Math.min(1, inten));
   $('#dangerVignette').style.opacity = chase && d < 8 ? String((1 - d / 8) * 0.8) : '';
+}
+
+// плёночное зерно (дёшево: маленький canvas, растянутый на экран)
+{
+  const c = $('#grain'), g = c.getContext('2d');
+  c.width = 240; c.height = 135;
+  const img = g.createImageData(c.width, c.height);
+  setInterval(() => {
+    if (phase !== 'playing') return;
+    for (let i = 0; i < img.data.length; i += 4) { const v = Math.random() * 255; img.data[i] = img.data[i + 1] = img.data[i + 2] = v; img.data[i + 3] = 255; }
+    g.putImageData(img, 0, 0);
+  }, 90);
 }
 
 requestAnimationFrame(frame);

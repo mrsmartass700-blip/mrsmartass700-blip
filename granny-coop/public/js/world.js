@@ -5,6 +5,8 @@ import * as TX from './textures.js';
 import { createExitLocks } from './models.js';
 
 const DOOR_H = 2.2, JAMB = 0.25;
+// детерминированный ГСЧ: у обоих игроков декор одинаковый
+function mulberry32(a) { return () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 
 export function buildWorld(scene, map, { dark = false } = {}) {
   const root = new THREE.Group();
@@ -29,8 +31,10 @@ export function buildWorld(scene, map, { dark = false } = {}) {
     sofa: new THREE.MeshLambertMaterial({ map: TX.fabric('#3e4f3a') }),
     metal: new THREE.MeshLambertMaterial({ color: 0x8b8f93 }),
     counter: new THREE.MeshLambertMaterial({ color: 0x6d5c48 }),
+    books: new THREE.MeshLambertMaterial({ map: TX.books() }),
   };
   const roomName = (x, y) => map.rooms[map.roomOf[y]?.[x]]?.name;
+  const rng = mulberry32(1998);
 
   // ---------- пол / потолок ----------
   const floorGeo = new THREE.PlaneGeometry(CELL, CELL); floorGeo.rotateX(-Math.PI / 2);
@@ -61,6 +65,7 @@ export function buildWorld(scene, map, { dark = false } = {}) {
     if (creakyMesh) { root.remove(creakyMesh); creakyMesh.dispose(); }
     const cells = list.map(i => [i % map.w, Math.floor(i / map.w)]);
     creakyMesh = inst(floorGeo, mat.creaky, cells, 0.004);
+    creakyMesh.receiveShadow = true;
   };
 
   // ---------- стены ----------
@@ -184,9 +189,18 @@ export function buildWorld(scene, map, { dark = false } = {}) {
       g.rotation.y = 0;
       addBox(g, CELL, 0.06, CELL, mat.midWood, 0, 0.78, 0);
       for (const sx of [-1, 1]) for (const sz of [-1, 1]) addBox(g, 0.07, 0.76, 0.07, mat.darkWood, sx * (CELL / 2 - 0.1), 0.38, sz * (CELL / 2 - 0.1));
-      if (Math.random() < 0.5) addBox(g, 0.12, 0.1, 0.12, mat.white, Math.random() * 0.6 - 0.3, 0.86, Math.random() * 0.6 - 0.3);
+      if (rng() < 0.6) addBox(g, 0.12, 0.1, 0.12, mat.white, rng() * 0.6 - 0.3, 0.86, rng() * 0.6 - 0.3);
+      if (rng() < 0.4) { const c2 = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, 0.25, 8), mat.white); c2.position.set(rng() * 0.8 - 0.4, 0.94, rng() * 0.8 - 0.4); g.add(c2); }
     } else if (c === 'C') {
-      if (rn === 'Ванная') {
+      if (rn === 'Кабинет') {
+        // книжный шкаф
+        addBox(g, CELL, 2.2, 0.45, mat.darkWood, 0, 1.1, -0.5);
+        for (let k = 0; k < 4; k++) {
+          const shelf = new THREE.Mesh(new THREE.PlaneGeometry(CELL - 0.12, 0.42), mat.books);
+          shelf.position.set(0, 0.3 + k * 0.52, -0.27);
+          g.add(shelf);
+        }
+      } else if (rn === 'Ванная') {
         addBox(g, 0.7, 0.8, 0.5, mat.white, 0, 0.4, -0.35);
         addBox(g, 0.5, 0.05, 0.35, mat.metal, 0, 0.82, -0.33);
       } else {
@@ -203,6 +217,54 @@ export function buildWorld(scene, map, { dark = false } = {}) {
       if (map.grid[y][x + 1] !== 'S') addBox(g, 0.2, 0.65, 0.9, mat.sofa, CELL / 2 - 0.1, 0.35, 0);
     } else continue;
     root.add(g);
+  }
+
+  // ---------- декор: картины, ковры, часы ----------
+  const frameMat = new THREE.MeshLambertMaterial({ color: 0x4a3218 });
+  const pics = ['granny', 'grandpa', 'cat', 'landscape'].map(k => new THREE.MeshLambertMaterial({ map: TX.portrait(k) }));
+  const nearDoor = (x, y) => [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => isDoorChar(map.grid[y + dy]?.[x + dx]));
+  let picCount = 0;
+  for (let y = 1; y < map.h - 1; y++) for (let x = 1; x < map.w - 1; x++) {
+    if (!isFloorChar(map.grid[y][x]) || nearDoor(x, y)) continue;
+    const rn = roomName(x, y);
+    if (!rn || rn === 'Улица') continue;
+    for (const [dx, dy] of [[0, -1], [0, 1], [-1, 0], [1, 0]]) {
+      if (map.grid[y + dy][x + dx] !== '#' || rng() > 0.11) continue;
+      const g = new THREE.Group();
+      g.position.set((x + 0.5) * CELL + dx * (CELL / 2 - 0.03), 1.55 + rng() * 0.15, (y + 0.5) * CELL + dy * (CELL / 2 - 0.03));
+      g.rotation.y = Math.atan2(-dx, -dy);
+      g.rotation.z = (rng() - 0.5) * 0.12; // висит криво
+      addBox(g, 0.62, 0.76, 0.05, frameMat, 0, 0, 0);
+      const pic = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.64), pics[(picCount++) % pics.length]);
+      pic.position.z = 0.03;
+      g.add(pic);
+      root.add(g);
+      break;
+    }
+  }
+  const rugMat = new THREE.MeshLambertMaterial({ map: TX.rug() });
+  for (const r of map.rooms) {
+    if (!['Спальня', 'Гостиная', 'Комната бабки', 'Кабинет'].includes(r.name)) continue;
+    const rugMesh = new THREE.Mesh(new THREE.PlaneGeometry(r.name === 'Гостиная' ? 4.2 : 3, r.name === 'Гостиная' ? 2.8 : 2), rugMat);
+    rugMesh.rotation.x = -Math.PI / 2;
+    rugMesh.position.set((r.cx + 0.5) * CELL, 0.008, (r.cy + 0.5) * CELL);
+    rugMesh.userData.floor = true;
+    root.add(rugMesh);
+  }
+  // часы в коридоре (всегда без пяти двенадцать)
+  {
+    const g = new THREE.Group();
+    g.position.set(17.5 * CELL, 0, 7 * CELL + 0.13); // у северной стены коридора
+    addBox(g, 0.55, 2.0, 0.24, mat.darkWood, 0, 1.0, 0);
+    const face = new THREE.Mesh(new THREE.CircleGeometry(0.2, 24), new THREE.MeshLambertMaterial({ map: TX.clockFace() }));
+    face.position.set(0, 1.6, 0.125);
+    g.add(face);
+    const pend = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.02, 16), new THREE.MeshLambertMaterial({ color: 0xc9a25a, emissive: 0x221800 }));
+    pend.rotation.x = Math.PI / 2;
+    const pivot = new THREE.Group(); pivot.position.set(0, 1.3, 0.13); pend.position.y = -0.45; pivot.add(pend);
+    g.add(pivot);
+    root.add(g);
+    root.userData.pendulum = pivot;
   }
 
   // ---------- свет ----------
@@ -222,7 +284,10 @@ export function buildWorld(scene, map, { dark = false } = {}) {
     root.add(light, bulb, wire);
     lamps.push({ light, bulb, base: light.intensity, flicker: r.name === 'Коридор' || r.name === 'Ванная' || Math.random() < 0.3, t: Math.random() * 10 });
   }
+  let clockT = 0;
   const updateLamps = (dt) => {
+    clockT += dt;
+    if (root.userData.pendulum) root.userData.pendulum.rotation.z = Math.sin(clockT * 3.2) * 0.25;
     for (const l of lamps) {
       if (!l.flicker) continue;
       l.t += dt;
@@ -236,6 +301,14 @@ export function buildWorld(scene, map, { dark = false } = {}) {
   const exitDoor = map.doors.find(d => d.exit);
   moon.position.set((exitDoor.x + 0.5) * CELL, 3, (exitDoor.y + 1.8) * CELL);
   root.add(moon);
+
+  // ---------- тени от фонарика ----------
+  root.traverse(o => {
+    if (!o.isMesh) return;
+    const isFloor = o.userData.floor || o.geometry?.type === 'PlaneGeometry' && o.isInstancedMesh;
+    o.receiveShadow = true;
+    o.castShadow = !isFloor && !(o.material?.isMeshBasicMaterial);
+  });
 
   return { root, interactables, setDoor, updateDoors, setExitLocks, setCreaky, updateLamps, hideMeshes, lamps };
 }

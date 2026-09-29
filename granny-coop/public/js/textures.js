@@ -117,3 +117,83 @@ export function fabric(color) {
     for (let x = 0; x < w; x += 4) { g.fillStyle = 'rgba(255,255,255,0.05)'; g.fillRect(x, 0, 1, h); }
   });
 }
+
+// ---------- декор: картины, ковёр, часы, книги ----------
+export function portrait(kind) {
+  return canvas(128, 160, (g, w, h) => {
+    g.fillStyle = '#2a2018'; g.fillRect(0, 0, w, h);
+    const grd = g.createRadialGradient(w / 2, h / 2, 10, w / 2, h / 2, 110);
+    grd.addColorStop(0, '#6b5a40'); grd.addColorStop(1, '#1c140d');
+    g.fillStyle = grd; g.fillRect(0, 0, w, h);
+    if (kind === 'granny' || kind === 'grandpa') {
+      g.fillStyle = '#3d2850'; g.beginPath(); g.ellipse(64, 170, 58, 60, 0, 0, 7); g.fill();
+      g.fillStyle = '#d8b894'; g.beginPath(); g.ellipse(64, 72, 30, 38, 0, 0, 7); g.fill();
+      if (kind === 'granny') {
+        g.fillStyle = '#bdbdbd'; g.beginPath(); g.ellipse(64, 50, 34, 24, 0, Math.PI, 0); g.fill();
+        g.beginPath(); g.arc(64, 26, 13, 0, 7); g.fill();
+        g.strokeStyle = '#111'; g.lineWidth = 2;
+        g.beginPath(); g.arc(52, 70, 8, 0, 7); g.moveTo(84, 70); g.arc(76, 70, 8, 0, 7); g.stroke();
+        g.fillStyle = '#fff'; g.fillRect(50, 68, 4, 4); g.fillRect(74, 68, 4, 4);
+      } else {
+        g.fillStyle = '#5a4a3a'; g.fillRect(44, 88, 40, 6); // усы
+        g.fillStyle = '#111'; g.fillRect(49, 67, 6, 5); g.fillRect(73, 67, 6, 5);
+        g.fillStyle = '#c9b27a'; g.fillRect(20, 134, 88, 18);
+        g.fillStyle = '#2a1d12'; g.font = 'bold 11px serif'; g.textAlign = 'center'; g.fillText('УШЁЛ ЗА ХЛЕБОМ', 64, 147);
+      }
+      g.fillStyle = '#6b2020'; g.fillRect(56, 92, 16, 3);
+    } else if (kind === 'cat') {
+      g.fillStyle = '#111';
+      g.beginPath(); g.ellipse(64, 110, 36, 40, 0, 0, 7); g.fill();
+      g.beginPath(); g.arc(64, 64, 26, 0, 7); g.fill();
+      g.beginPath(); g.moveTo(42, 50); g.lineTo(46, 26); g.lineTo(58, 42); g.moveTo(86, 50); g.lineTo(82, 26); g.lineTo(70, 42); g.fill();
+      g.fillStyle = '#e8d24a'; g.beginPath(); g.ellipse(54, 62, 5, 7, 0, 0, 7); g.ellipse(74, 62, 5, 7, 0, 0, 7); g.fill();
+    } else {
+      g.fillStyle = '#10182a'; g.fillRect(0, 0, w, 100);
+      g.fillStyle = '#e8e2c0'; g.beginPath(); g.arc(90, 36, 14, 0, 7); g.fill();
+      g.fillStyle = '#1b2414'; g.beginPath(); g.moveTo(0, 100); g.quadraticCurveTo(50, 70, 128, 96); g.lineTo(128, 160); g.lineTo(0, 160); g.fill();
+      g.fillStyle = '#0a0a0a'; g.fillRect(30, 72, 22, 20); g.beginPath(); g.moveTo(26, 74); g.lineTo(41, 60); g.lineTo(56, 74); g.fill();
+      g.fillStyle = '#d4a020'; g.fillRect(38, 80, 5, 5);
+    }
+    // трещинки лака
+    g.strokeStyle = 'rgba(0,0,0,0.25)'; g.lineWidth = 1;
+    for (let i = 0; i < 12; i++) { g.beginPath(); const x = rnd(0, w), y = rnd(0, h); g.moveTo(x, y); g.lineTo(x + rnd(-15, 15), y + rnd(-15, 15)); g.stroke(); }
+  });
+}
+
+export function rug() {
+  return canvas(256, 160, (g, w, h) => {
+    g.fillStyle = '#5c1a1a'; g.fillRect(0, 0, w, h);
+    g.strokeStyle = '#c9a25a'; g.lineWidth = 6; g.strokeRect(10, 10, w - 20, h - 20);
+    g.strokeStyle = '#1f3a4a'; g.lineWidth = 4; g.strokeRect(22, 22, w - 44, h - 44);
+    for (let x = 40; x < w - 30; x += 36) for (let y = 40; y < h - 30; y += 36) {
+      g.fillStyle = (x + y) % 72 ? '#c9a25a' : '#1f3a4a';
+      g.beginPath(); g.moveTo(x, y - 10); g.lineTo(x + 10, y); g.lineTo(x, y + 10); g.lineTo(x - 10, y); g.fill();
+    }
+    grime(g, w, h, 18, 0.35);
+  });
+}
+
+export function clockFace() {
+  return canvas(128, 128, (g) => {
+    g.fillStyle = '#e8dfc8'; g.beginPath(); g.arc(64, 64, 60, 0, 7); g.fill();
+    g.strokeStyle = '#2a1d12'; g.lineWidth = 4; g.stroke();
+    g.fillStyle = '#2a1d12'; g.font = 'bold 14px serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    ['XII', 'III', 'VI', 'IX'].forEach((t, i) => { const a = i * Math.PI / 2 - Math.PI / 2; g.fillText(t, 64 + Math.cos(a) * 45, 64 + Math.sin(a) * 45); });
+    g.lineWidth = 4; g.beginPath(); g.moveTo(64, 64); g.lineTo(64, 28); g.stroke(); // без пяти двенадцать… всегда
+    g.lineWidth = 3; g.beginPath(); g.moveTo(64, 64); g.lineTo(54, 30); g.stroke();
+  });
+}
+
+export function books() {
+  return canvas(128, 64, (g, w, h) => {
+    g.fillStyle = '#1a1008'; g.fillRect(0, 0, w, h);
+    let x = 2;
+    while (x < w - 4) {
+      const bw = rnd(5, 11), bh = rnd(40, 60);
+      g.fillStyle = `hsl(${rnd(0, 360)}, ${rnd(20, 50)}%, ${rnd(15, 35)}%)`;
+      g.fillRect(x, h - bh, bw, bh);
+      g.fillStyle = 'rgba(255,220,150,0.3)'; g.fillRect(x + 1, h - bh + 6, bw - 2, 2);
+      x += bw + 1;
+    }
+  });
+}

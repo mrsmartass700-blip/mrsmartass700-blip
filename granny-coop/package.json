@@ -7,9 +7,15 @@
   "scripts": {
     "start": "node server/index.js",
     "test": "node test/sim.js && node test/installer-smoke.js",
-    "setup": "node installer/installer.js"
+    "setup": "node installer/installer.js",
+    "build:exe": "node tools/build-exe.mjs"
   },
   "engines": {
     "node": ">=18"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0",
+    "postject": "^1.0.0-alpha.6",
+    "resedit": "^2.0.0"
   }
 }

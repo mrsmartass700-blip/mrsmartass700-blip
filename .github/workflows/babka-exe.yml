@@ -1,0 +1,59 @@
+name: Бабка Кооп — сборка .exe
+
+on:
+  push:
+    paths: ['granny-coop/**', '.github/workflows/babka-exe.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows-exe:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: granny-coop
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Зависимости для сборки
+        run: npm ci
+
+      - name: Тесты игры и установщика
+        run: npm test
+
+      - name: Сборка BabkaCoop.exe
+        run: npm run build:exe
+
+      - name: Проверка .exe на Windows (игра + полная установка)
+        run: node test/exe-smoke.js dist/BabkaCoop.exe --full
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BabkaCoop-windows
+          path: |
+            granny-coop/dist/BabkaCoop.exe
+            granny-coop/dist/BabkaCoop-Setup.exe
+
+      - name: Публикация в Releases (babka-latest)
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $notes = @"
+          Сборка из ветки ``${{ github.ref_name }}``, коммит ${{ github.sha }}.
+
+          * **BabkaCoop-Setup.exe** — мастер установки «Бабка Setup Wizard 98» (ярлыки, брандмауэр, деинсталлятор).
+          * **BabkaCoop.exe** — портативная версия: просто запустить, установка не нужна.
+
+          Другу ничего скачивать не нужно — ему хватит браузера и Radmin VPN.
+          Windows может показать «Windows защитила ваш компьютер» (файл без цифровой подписи): «Подробнее» → «Выполнить в любом случае».
+          "@
+          gh release delete babka-latest --yes --cleanup-tag 2>$null
+          gh release create babka-latest dist/BabkaCoop-Setup.exe dist/BabkaCoop.exe `
+            --title "Бабка: Кооп — последняя сборка" --notes $notes --target ${{ github.sha }} --latest
