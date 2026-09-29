@@ -101,6 +101,7 @@ try {
   ok('установленная игра запускается на порту из config.json');
 } finally {
   for (const p of procs) try { p.kill(); } catch { /* уже завершён */ }
-  await sleep(300);
-  try { fs.rmSync(tmp, { recursive: true, force: true }); } catch { /* файлы ещё заняты */ }
+  const exited = (p) => p.exitCode !== null || p.signalCode !== null ? Promise.resolve() : new Promise(r => p.once('exit', r));
+  await Promise.race([Promise.all(procs.map(exited)), sleep(5000)]);
+  try { fs.rmSync(tmp, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 }); } catch { /* файлы ещё заняты — не страшно */ }
 }

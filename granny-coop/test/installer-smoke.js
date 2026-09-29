@@ -47,7 +47,10 @@ try {
   assert.equal((await fetch('http://127.0.0.1:7788/')).status, 200);
   console.log('  ✓ установщик: пробная установка, конфиг, запуск установленной игры');
 } finally {
+  // на Windows файлы освобождаются только после фактического выхода процесса
+  const exited = (p) => p.exitCode !== null || p.signalCode !== null ? Promise.resolve() : new Promise(r => p.once('exit', r));
   inst.kill();
   for (const k of kill) k.kill();
-  fs.rmSync(dir, { recursive: true, force: true });
+  await Promise.race([Promise.all([inst, ...kill].map(exited)), new Promise(r => setTimeout(r, 5000))]);
+  try { fs.rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 }); } catch (e) { console.warn('  (не удалось удалить временную папку:', e.code + ')'); }
 }
