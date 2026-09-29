@@ -59,10 +59,17 @@ function run(cmd, argv, opts = {}) {
 }
 
 // PowerShell через -EncodedCommand — никаких проблем с кириллицей и кавычками в путях
-function ps(script, opts) {
-  const pre = '[Console]::OutputEncoding=[Text.Encoding]::UTF8;$ErrorActionPreference="Stop";';
-  const enc = Buffer.from(pre + script, 'utf16le').toString('base64');
-  return run('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', ...(opts?.sta ? ['-STA'] : []), '-EncodedCommand', enc], opts);
+async function ps(script, opts) {
+  const pre = '[Console]::OutputEncoding=[Text.Encoding]::UTF8;$ErrorActionPreference="Stop";$ProgressPreference="SilentlyContinue";\n';
+  const wrapped = `${pre}try {\n${script}\n} catch { [Console]::Out.WriteLine("BABKA_ERR: " + $_.Exception.Message + " | " + ($_.InvocationInfo.PositionMessage -replace "\\s+", " ")); exit 1 }`;
+  const enc = Buffer.from(wrapped, 'utf16le').toString('base64');
+  try {
+    return await run('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', ...(opts?.sta ? ['-STA'] : []), '-EncodedCommand', enc], opts);
+  } catch (e) {
+    const m = String(e.stdout || '').match(/BABKA_ERR: (.*)/);
+    if (m) { e.stderr = m[1]; e.message = m[1]; }
+    throw e;
+  }
 }
 const psq = (s) => `'${String(s).replace(/'/g, "''")}'`; // строка для PowerShell
 
