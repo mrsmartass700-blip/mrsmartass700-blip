@@ -219,9 +219,35 @@ async function install(opts) {
       await step('shortcuts', 'Рисуем ярлыки (бабка позирует для иконки)', async (s) => {
         if (!sys) { s.msg = DRY ? 'Пробный режим' : 'Не Windows — ярлыки пропущены'; return 'skip'; }
         const target = path.join(dir, MODE === 'exe' ? EXE_NAME : 'start.bat'), icon = path.join(dir, 'babka.ico');
+        // IShellLinkW (Unicode) — WScript.Shell ломается на кириллице в не-русской локали
         const script = `
-          $w = New-Object -ComObject WScript.Shell
-          function L($p, $t, $a, $d) { $l = $w.CreateShortcut($p); $l.TargetPath = $t; $l.Arguments = $a; $l.WorkingDirectory = ${psq(dir)}; $l.IconLocation = ${psq(icon)}; $l.Description = $d; $l.Save() }
+          Add-Type -TypeDefinition @'
+using System; using System.Runtime.InteropServices; using System.Text;
+[ComImport, Guid("00021401-0000-0000-C000-000000000046")] class CShellLink {}
+[ComImport, InterfaceType(ComInterfaceType.InterfaceIsIUnknown), Guid("000214F9-0000-0000-C000-000000000046")]
+interface IShellLinkW {
+  void GetPath([Out, MarshalAs(UnmanagedType.LPWStr)] StringBuilder f, int c, IntPtr fd, int fl); void GetIDList(out IntPtr p); void SetIDList(IntPtr p);
+  void GetDescription([Out, MarshalAs(UnmanagedType.LPWStr)] StringBuilder s, int c); void SetDescription([MarshalAs(UnmanagedType.LPWStr)] string s);
+  void GetWorkingDirectory([Out, MarshalAs(UnmanagedType.LPWStr)] StringBuilder s, int c); void SetWorkingDirectory([MarshalAs(UnmanagedType.LPWStr)] string s);
+  void GetArguments([Out, MarshalAs(UnmanagedType.LPWStr)] StringBuilder s, int c); void SetArguments([MarshalAs(UnmanagedType.LPWStr)] string s);
+  void GetHotkey(out short h); void SetHotkey(short h); void GetShowCmd(out int i); void SetShowCmd(int i);
+  void GetIconLocation([Out, MarshalAs(UnmanagedType.LPWStr)] StringBuilder s, int c, out int i); void SetIconLocation([MarshalAs(UnmanagedType.LPWStr)] string s, int i);
+  void SetRelativePath([MarshalAs(UnmanagedType.LPWStr)] string s, int r); void Resolve(IntPtr h, int f); void SetPath([MarshalAs(UnmanagedType.LPWStr)] string s);
+}
+[ComImport, InterfaceType(ComInterfaceType.InterfaceIsIUnknown), Guid("0000010b-0000-0000-C000-000000000046")]
+interface IPersistFile {
+  void GetClassID(out Guid g); [PreserveSig] int IsDirty(); void Load([MarshalAs(UnmanagedType.LPWStr)] string f, int m);
+  void Save([MarshalAs(UnmanagedType.LPWStr)] string f, bool r); void SaveCompleted([MarshalAs(UnmanagedType.LPWStr)] string f); void GetCurFile([MarshalAs(UnmanagedType.LPWStr)] out string f);
+}
+public static class BabkaLink {
+  public static void Make(string lnk, string target, string args, string dir, string icon, string desc) {
+    var l = (IShellLinkW)new CShellLink();
+    l.SetPath(target); l.SetArguments(args); l.SetWorkingDirectory(dir); l.SetIconLocation(icon, 0); l.SetDescription(desc);
+    ((IPersistFile)l).Save(lnk, true);
+  }
+}
+'@
+          function L($p, $t, $a, $d) { [BabkaLink]::Make($p, $t, $a, ${psq(dir)}, ${psq(icon)}, $d) }
           ${opts.desktop ? `L (Join-Path ([Environment]::GetFolderPath('Desktop')) ${psq(APP_NAME + '.lnk')}) ${psq(target)} '' 'Кооператив против бабки'` : ''}
           ${opts.startMenu ? `
           $sm = Join-Path ([Environment]::GetFolderPath('Programs')) ${psq(APP_NAME)}
