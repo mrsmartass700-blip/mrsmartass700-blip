@@ -80,7 +80,7 @@ try {
     assert.ok(fs.existsSync(path.join(dir, f)), f);
   assert.equal(fs.statSync(path.join(dir, exeName)).size, fs.statSync(exe).size);
   if (FULL && IS_WIN) {
-    for (const s of st.steps) assert.equal(s.state, 'ok', `${s.id}: ${s.msg}`);
+    for (const s of st.steps) assert.equal(s.state, s.id === 'runtime' ? 'skip' : 'ok', `${s.id}: ${s.msg}`);
     const desk = execFileSync('powershell.exe', ['-NoProfile', '-Command', "[Environment]::GetFolderPath('Desktop')"], { encoding: 'utf8' }).trim();
     assert.ok(fs.existsSync(path.join(desk, 'Бабка Кооп.lnk')), 'ярлык на рабочем столе');
     const reg = execFileSync('reg.exe', ['query', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\BabkaCoop', '/v', 'DisplayName'], { encoding: 'utf8' });

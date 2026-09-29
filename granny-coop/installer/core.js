@@ -134,7 +134,7 @@ async function step(id, label, fn, { fatal = true } = {}) {
     s.state = r === 'skip' ? 'skip' : 'ok';
   } catch (e) {
     s.state = fatal ? 'fail' : 'warn';
-    s.msg = e.userMessage || String(e.message || e).split('\n')[0];
+    s.msg = e.userMessage || (e.stderr && String(e.stderr).trim().split('\n').slice(-6).join(' ').slice(0, 600)) || String(e.message || e).split('\n')[0];
     logLine(`${label}: ${s.msg}`, fatal ? 'error' : 'warn');
     if (fatal) throw e;
   }
